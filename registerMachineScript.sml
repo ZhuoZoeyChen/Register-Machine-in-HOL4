@@ -26,11 +26,11 @@ val _ = Datatype‘
   |>
 ’;
 
- (*qr : state *);  
-
+(* Initialise *)
 val init_machine_def = Define `
 	init_machine m i = 
-		((λn. if n < LENGTH i then EL n i else 0)
+		((λn. if findi n m.In = LENGTH m.In then 0
+            else EL (findi n m.In) i)
 		,
         SOME m.q0)
 `;
@@ -48,10 +48,20 @@ val run_machine_1_def = Define `
 `;
 
 val run_machine_def = Define `
-	
 	(run_machine m = WHILE (λ(rs, so). so ≠ NONE) (run_machine_1 m)) 
 `;
 
+val RUN_def = Define `
+  RUN m i = FST (run_machine m (init_machine m i)) m.Out
+`;
+
+val const_def = Define `
+  (const 0 = )
+    ∧ (const 1 = ) 
+      ∧ (const (SUC n) = let m = const n in ...
+                tf := m.tf (| ... |-> ... |) 
+                )
+`;
 (* (run_machine m (rs, NONE) = init_machine m rs) 
 	∧ 
 	*)
@@ -67,7 +77,7 @@ val empty_def = Define `
       Q := {1} ; 
       tf := (λn. Dec 0 (SOME 1) NONE) ;
       q0 := 1 ;
-      In := {0} ;
+      In := [0] ;
       Out := 0 ;
 	|>
 `;
@@ -82,7 +92,7 @@ val transfer_def = Define `
       			| 2 => Inc 1 (SOME 1)
       		) ;
       q0 := 1 ;
-      In := {0} ;
+      In := [0] ;
       Out := 1 ;
 	|>
 `;
@@ -100,7 +110,7 @@ val addition_def = Define `
       			| 5 => Inc 0 (SOME 4)
       		) ;
       q0 := 1 ;
-      In := {0; 1} ; (* include the accumulator or not ?*)
+      In := [0; 1] ; (* include the accumulator or not ?*)
       Out := 1 ;
 	|>
 `;
@@ -108,6 +118,8 @@ val addition_def = Define `
 val addition_0 = EVAL ``init_machine addition [15; 23]``
 
 val addition_lemma = EVAL `` run_machine addition (init_machine addition [15; 23])``
+
+val R_addition = EVAL ``RUN addition [15; 23]``
 
 val multiplication_def = Define `
 	 multiplication = <| 
@@ -121,12 +133,28 @@ val multiplication_def = Define `
       		    | 6 => Inc 1 (SOME 5) 
       		 );
       q0 := 1 ;
-      In := {0;1} ;
+      In := [0;1] ;
       Out := 2 ;
 	|>
 `;
 
 val multiplication_lemma = EVAL `` run_machine multiplication (init_machine multiplication [3; 4])``
+
+val double_def = Define `
+  double = <|
+    Q := {1; 2; 3};
+    tf := (λs. case s of 
+            | 1 => Dec 0 (SOME 2) NONE
+            | 2 => Inc 1 (SOME 3) 
+            | 3 => Inc 1 (SOME 1)
+            );
+    q0 := 1;
+    In := [0];
+    Out := 1;
+    |>
+  `;
+
+  val foo = EVAL ``RUN double [15]``
 
  (* ------------ END examples ------------
    -------------------------------------- 
@@ -134,6 +162,7 @@ val multiplication_lemma = EVAL `` run_machine multiplication (init_machine mult
    -------------------------------------- *)
 
 
+(* Machine and math operation returns the same output *)
 val correct2_def = Define `
 	correct2 f m ⇔ ∀a b. ∃rs. (run_machine m (init_machine m [a;b]) = (rs, NONE)) ∧ (rs m.Out = f a b)
 `;
@@ -141,55 +170,40 @@ val correct2_def = Define `
 Theorem addition_correct:
 	correct2 (+) addition 
 Proof
-cheat
+  rw[correct2_def, init_machine_def, run_machine_1_def] >>
+  rw[run_machine_def, addition_def] >>
+  metis_tac[] >>
 QED
 
 
 (* WANT : runM (seq m1 m2) rs_so =  runM m2 (runM m1 rs_so) {same result}*)
 
-
 val seq_def = Define `
 	seq m1 m2 = <|
-	    Q := { r1*2+2 | r1 ∈ m1.Q } UNION { r2*2+3 | r2 ∈ m2.Q } ;
-   	    tf := (λs. if s = 0  then (*transfer, (m2.q0 * 2 + 1)*)
-   	               else if s = 1 then (*transfer, (m2.q0 * 2 + 1)*)
-   	              else if EVEN s then (case (m1.tf (s DIV 2)) of 
-   	    	                            | Dec x (SOME y) NONE     => Dec (x*2) (SOME (y*2)) (SOME 0)
-   	    		  				        | Inc x NONE              => Inc (x*2) (SOME 0)
-   	    	      						| Dec x (SOME y) (SOME z) => Dec (x*2) (SOME $ y*2) (SOME $ z*2)
-   	    	      						| Inc x (SOME y)          => Inc (x*2) (SOME $ y*2))
-   	    	      else (case (m2.tf (s DIV 2)) of 
-   	    	      			| Dec x (SOME y) (SOME z) => Dec (x*2+1) (SOME $ y*2+1) (SOME $ y*2+1) 
-   	    	      		    | Dec x (SOME y) NONE     => Dec (x*2+1) (SOME $ y*2+1) NONE
-   	    	      		    | Inc x (SOME y)          => Inc (x*2+1) (SOME $ y*2+1)
-   	    	      		    | Inc x NONE              => Inc (x*2+1) NONE)
+	    Q := { s1*2+2 | s1 ∈ m1.Q } UNION { s2*2+3 | s2 ∈ m2.Q } ;
+   	    tf := (λs. if s = 0  
+                      then Dec (m1.Out*2) (SOME 1) (SOME (m2.q0*2+3))
+   	               else if s = 1 
+                      then Inc ((HD m2.In)*2+1) (SOME 0)  
+   	               else if EVEN s then (case (m1.tf ((s-2) DIV 2)) of 
+   	    	                  | Dec x (SOME y) NONE     => Dec (x*2) (SOME (y*2+2)) (SOME 0)
+   	    		  				      | Inc x NONE              => Inc (x*2) (SOME 0)
+   	    	      						| Dec x (SOME y) (SOME z) => Dec (x*2) (SOME $ y*2+2) (SOME $ z*2+2)
+   	    	      						| Inc x (SOME y)          => Inc (x*2) (SOME $ y*2+2))
+   	    	              else (case (m2.tf ((s-3) DIV 2)) of 
+   	    	      		    	| Dec x (SOME y) (SOME z) => Dec (x*2+1) (SOME $ y*2+3) (SOME $ y*2+3) 
+   	    	      		      | Dec x (SOME y) NONE     => Dec (x*2+1) (SOME $ y*2+3) NONE
+   	    	      		      | Inc x (SOME y)          => Inc (x*2+1) (SOME $ y*2+3)
+   	    	      		      | Inc x NONE              => Inc (x*2+1) NONE)
 
    	    	   ) ;
-  	    q0 := m1.q0 * 2;
-   	    In := m1.In ;
-        Out := m2.Out ;
+  	    q0 := m1.q0 * 2 + 2;
+   	    In := MAP (λn. n*2) m1.In;
+        Out := m2.Out * 2 + 1;
 	|>
 `; 
 
-val seq_def = Define `
-	seq m1 m2 = <|
-	    Q := { r1, r2 + m1.qr + 1 | r1 ∈ m1.Q ∧ r2 ∈ m2.Q } ; 
-   	    tf := (λs. case s of
-   	    		  | m1.qr => case m1.qr of 
-   	    		  				 Dec x (SOME y) NONE => Dec x (SOME y) (SOME (m2.q0 + m1.qr + 1))
-   	    		  				 _                   => m1.qr
-   	    	   
-   	    	      | n , n < qr => m1.tf s (*syntax?? *)
-   	    	      | case m2.tf s of 
-   	    	      		Inc x (SOME y) => Inc 
-   	    	   ) ;
-  	    q0 := m1.q0 ;
-   	    I := m1.I ;
-        O := m2.O ;
-        qr := m2.qr ;
-	|>
-`; 
-
+val seq_add_trans_lemma = EVAL `` RUN (seq addition double) [15; 27]``
 
 
 
@@ -199,17 +213,13 @@ val seq_def = Define `
 
 (*
 TODOS:
-1. define and test more example register machines from the book
-2. think about combining machines (addition and multiplication for example)
- (hint: define a function which combines different machines)
-WANT
-	runM (seq m1 m2) rs_so
-	= runM m2 (runM m1 rs_so)
-(make all states in m1 even and all states in m2 odd)
 3. define well formed register machine
- 4. add return state to all existing functions
+4. add return state to all existing functions
 *)
+
+
 (*
+
 TODOS 9. May . 2019
 1. Prove addition is correct
 2. Fix seq *)
@@ -225,7 +235,6 @@ if regs n = 0 then
 else 
 	regs2 = regs (| n |-> regs n - 1 |)
 
-
 nm : num -> action
 
 (| Q 
@@ -237,5 +246,22 @@ nm : num -> action
 
 *)
 
+(* 
+Notes 20.05.2019
+
+How about using hashmap for registers?
+
+*)
+
+(*
+TODO 23.May
+1. const
+2. binary composition 
+  (x+1)*(y+3)
+    RUN (Bn m [m1; m2])
+3. Cn
+    RUN (Cn m [ms]) [inputs]
+4. Well formness 
+*)
 
 val _ = export_theory ()
