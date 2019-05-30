@@ -12,8 +12,8 @@ val _ = Datatype ` action = Inc num (state option) | Dec num (state option) (sta
     Q : state set (each one represented with a number); 
     tf : state -> action (returns the action inside the state);
     q0 : state (initial state);
-    I : reg set (input registers, each represetned with a number);
-    O : reg set (output registers, each represetned with a number);
+    I : reg list (input regs);
+    O : reg (output register);
 *)
 
 val _ = Datatype‘
@@ -36,6 +36,16 @@ val init_machine_def = Define `
 `;
 
 
+(*val init_machine_def = Define `
+  init_machine m i = 
+    ((λn. if n > LENGTH i then 0
+            else if n = 0 then 0
+            else EL (n-1) i)
+    ,
+        SOME m.q0)
+`;
+*)
+
 (* run machine :: machine -> (registers, state option) ->  (registers, state option) 
 state here is a number *)
 val run_machine_1_def = Define `
@@ -56,11 +66,37 @@ val RUN_def = Define `
 `;
 
 val const_def = Define `
-  (const 0 = )
-    ∧ (const 1 = ) 
-      ∧ (const (SUC n) = let m = const n in ...
-                tf := m.tf (| ... |-> ... |) 
-                )
+    (const 0 = 
+    <|
+       Q := {1} ;
+       tf := (λn. Inc 0 NONE) ; (* Do I need the λn here?*)
+       q0 := 1 ; 
+       In := [0] ;
+       Out := 1 ;
+    |>)
+  ∧
+    (const 1 = 
+    <|
+       Q := {1} ;
+       tf := (λn. case n of 
+                | 1 => Inc 1 NONE
+              );
+       q0 := 1 ;
+       In := [0] ;
+       Out := 1 ;
+    |>) 
+  ∧ 
+    (const (SUC n) =
+       let m = const n
+     in 
+      (<|
+         Q  := {s | (s = SUC n) ∨ s IN m.Q } ;
+         tf := m.tf (| SUC n |-> Inc 1 (SOME n) |) ;
+         q0 := SUC n ;
+         In := [0] ;
+         Out := 1 ;
+      |>)
+      )
 `;
 (* (run_machine m (rs, NONE) = init_machine m rs) 
 	∧ 
@@ -163,7 +199,7 @@ val double_def = Define `
 
 
 (* Machine and math operation returns the same output *)
-val correct2_def = Define `
+(* val correct2_def = Define `
 	correct2 f m ⇔ ∀a b. ∃rs. (run_machine m (init_machine m [a;b]) = (rs, NONE)) ∧ (rs m.Out = f a b)
 `;
 
@@ -174,13 +210,13 @@ Proof
   rw[run_machine_def, addition_def] >>
   metis_tac[] >>
 QED
-
+*)
 
 (* WANT : runM (seq m1 m2) rs_so =  runM m2 (runM m1 rs_so) {same result}*)
 
 val seq_def = Define `
 	seq m1 m2 = <|
-	    Q := { s1*2+2 | s1 ∈ m1.Q } UNION { s2*2+3 | s2 ∈ m2.Q } ;
+	    Q := { s1*2+2 | s1 ∈ m1.Q } ∪ { s2*2+3 | s2 ∈ m2.Q } ∪ {0;1};
    	    tf := (λs. if s = 0  
                       then Dec (m1.Out*2) (SOME 1) (SOME (m2.q0*2+3))
    	               else if s = 1 
@@ -222,8 +258,6 @@ TODOS:
 
 TODOS 9. May . 2019
 1. Prove addition is correct
-2. Fix seq *)
-
 (*
 
 tf: regs -> num -> num # regs
@@ -246,12 +280,6 @@ nm : num -> action
 
 *)
 
-(* 
-Notes 20.05.2019
-
-How about using hashmap for registers?
-
-*)
 
 (*
 TODO 23.May
@@ -263,5 +291,91 @@ TODO 23.May
     RUN (Cn m [ms]) [inputs]
 4. Well formness 
 *)
+
+
+(*
+Binary Composition 
+state 1-10 : duplicating x, y into m1.In
+state 11-20 : duplicating x, y into m2.In
+state 21-22 : move m1.out to m.in
+state 23-24 : move m2.out to m.in
+*)
+
+val bn_def = Define `
+  bn m [m1, m2] = <| 
+    Q := {s * 3 + 25 | s ∈ m.Q} ∪ {s1 * 3 + 26 | s1 ∈ m1.Q} ∪ {s2 * 3 + 27 | s2 ∈ m2.Q} ∪ {x | x > 0 ∧ x < 25} ∪ {0};
+    tf := (λs. case s of 
+               | 1 => Dec 1 (SOME 2) (SOME 4)
+               | 2 => Inc ((EL 0 m1.In)*3+4) (SOME 3)
+               | 3 => Inc 0 (SOME 1) 
+               | 4 => Dec 0 (SOME 5) (SOME 6)
+               | 5 => Inc 1 (SOME 4)
+               | 6 => Dec 2 (SOME 7) (SOME 9)
+               | 7 => Inc ((EL 1 m1.In)*3+4) (SOME 8)
+               | 8 => Inc 0 (SOME 6)
+               | 9 => Dec 0 (SOME 10) (SOME 11)
+               | 10 => Inc 2 (SOME 9)
+               | 11 => Dec 1 (SOME 12) (SOME 14)
+               | 12 => Inc ((EL 0 m2.In)*3+5) (SOME 13)
+               | 13 => Inc 0 (SOME 11) 
+               | 14 => Dec 0 (SOME 15) (SOME 16)
+               | 15 => Inc 1 (SOME 14)
+               | 16 => Dec 2 (SOME 17) (SOME 19)
+               | 17 => Inc ((EL 1 m2.In)*3+5) (SOME 18)
+               | 18 => Inc 0 (SOME 16)
+               | 19 => Dec 0 (SOME 20) (SOME (m1.q0*3+26))
+               | 20 => Inc 2 (SOME 19)
+               | 21 => Dec (m1.Out*3+4) (SOME 22) (SOME (m2.q0*3+27))
+               | 22 => Inc ((EL 0 m.In)*3+3) (SOME 21)
+               | 23 => Dec (m2.Out*3+5) (SOME 24) (SOME (m.q0*3+25))
+               | 24 => Inc ((EL 1 m.In)*3+3) (SOME 23)
+               | _  => if s MOD 3 = 0
+                           then (case (m2.tf ((s-27) DIV 3)) of 
+                            | Dec x (SOME y) NONE     => Dec (x*3+5) (SOME (y*3+27)) (SOME 23)
+                            | Inc x NONE              => Inc (x*3+5) (SOME 23)
+                            | Dec x (SOME y) (SOME z) => Dec (x*3+5) (SOME $ y*3+27) (SOME $ z*3+27)
+                            | Inc x (SOME y)          => Inc (x*3+5) (SOME $ y*3+27))
+                       else if s MOD 3 = 1
+                          then (case (m.tf ((s-25) DIV 3)) of 
+                            | Dec x (SOME y) NONE     => Dec (x*3+3) (SOME (y*3+25)) NONE
+                            | Inc x NONE              => Inc (x*3+3) NONE
+                            | Dec x (SOME y) (SOME z) => Dec (x*3+3) (SOME $ y*3+25) (SOME $ z*3+25)
+                            | Inc x (SOME y)          => Inc (x*3+3) (SOME $ y*3+25))
+                       else (case (m1.tf ((s-26) DIV 3)) of 
+                            | Dec x (SOME y) NONE     => Dec (x*3+4) (SOME (y*3+26)) (SOME 21)
+                            | Inc x NONE              => Inc (x*3+4) (SOME 21)
+                            | Dec x (SOME y) (SOME z) => Dec (x*3+4) (SOME $ y*3+26) (SOME $ z*3+26)
+                            | Inc x (SOME y)          => Inc (x*3+4) (SOME $ y*3+26) )
+            );
+    q0 := m1.q0 * 3 + 5;
+    In := [1; 2];
+    Out := m.Out;
+  |>
+`;
+
+
+val dup_def = Define `
+  dup r1 r2 r3= <| 
+    Q := {1;2;3;4;5};
+    tf := (λs. case s of 
+            | 1 => Dec r1 (SOME 2) (SOME 4)
+            | 2 => Inc r2 (SOME 3)
+            | 3 => Inc r3 (SOME 1) 
+            | 4 => Dec r3 (SOME 5) NONE
+            | 5 => Inc r1 (SOME 4)
+            );
+    q0 := 1;
+    In := [r1];
+    Out := r2;
+  |>
+`;
+
+(*
+Cn
+    RUN (Cn m [ms]) [inputs]
+*)
+val cn_def = Define `
+
+`;
 
 val _ = export_theory ()
