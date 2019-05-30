@@ -51,7 +51,8 @@ state here is a number *)
 val run_machine_1_def = Define `
     (run_machine_1 m (rs, NONE) = (rs, NONE)) 
     ∧
-	(run_machine_1 m (rs, SOME s) = case m.tf s of
+	(run_machine_1 m (rs, SOME s) = if s ∉ m.Q then (rs ,NONE) 
+   else case m.tf s of
 		| Inc r so => ( rs (| r |-> rs r + 1 |), so )
 		| Dec r so1 so2 => if rs r > 0 then ( rs (| r |-> rs r - 1 |) , so1)
 		                      else ( rs, so2))
@@ -75,7 +76,7 @@ val const_def = Define `
        Out := 1 ;
     |>)
   ∧
-    (const 1 = 
+    (const (SUC 0) = 
     <|
        Q := {1} ;
        tf := (λn. case n of 
@@ -302,7 +303,7 @@ state 23-24 : move m2.out to m.in
 *)
 
 val bn_def = Define `
-  bn m [m1, m2] = <| 
+  bn m m1 m2 = <| 
     Q := {s * 3 + 25 | s ∈ m.Q} ∪ {s1 * 3 + 26 | s1 ∈ m1.Q} ∪ {s2 * 3 + 27 | s2 ∈ m2.Q} ∪ {x | x > 0 ∧ x < 25} ∪ {0};
     tf := (λs. case s of 
                | 1 => Dec 1 (SOME 2) (SOME 4)
@@ -377,5 +378,10 @@ Cn
 val cn_def = Define `
 
 `;
+
+(*30 may
+1. Cn using link and dup and ..
+2. use number for states
+*)
 
 val _ = export_theory ()
