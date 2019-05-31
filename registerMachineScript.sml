@@ -355,8 +355,8 @@ val bn_def = Define `
 `;
 
 
-val dup_def = Define `
-  dup r1 r2 r3= <| 
+val dup0_def = Define `
+  dup0 r1 r2 r3= <| 
     Q := {1;2;3;4;5};
     tf := (λs. case s of 
             | 1 => Dec r1 (SOME 2) (SOME 4)
@@ -371,13 +371,77 @@ val dup_def = Define `
   |>
 `;
 
+val upd_def = Define `
+  (upd NONE d = SOME d) 
+    ∧
+  (upd (SOME d0) d = SOME d0)
+`;
+
+val end_link_def = Define `
+  (end_link (Inc q d0) d = Inc q (upd d0 d))
+    ∧
+  (end_link (Dec q d1 d2) d = Dec q (upd d1 d) (upd d2 d))
+`;
+
+val link_def = Define`
+  link m1 m2 = <|
+    Q := m1.Q ∪ m2.Q;
+    tf := (λs. if s ∈ m1.Q then end_link (m1.tf s) m2.q0
+                else m2.tf s);
+    q0 := m1.q0;
+    In := m1.In;
+    Out := m2.Out;
+  |>
+`;
+
+set_mapped_fixity {
+  term_name = "link",
+  tok = "⇨",
+  fixity = Infixl 500
+}
+
+val rlnst_def = Define `
+  (rlnst ds dr (Inc r s) = Inc (r+dr) (OPTION_MAP ((+)ds) s))
+    ∧
+  (rlnst ds dr (Dec r s1 s2) = Dec (r+dr) (OPTION_MAP ((+)ds) s1) (OPTION_MAP ((+)ds) s2))
+`;
+
+val rename_def = Define `
+  rename ds dr m = <|
+    Q := { ds + s | s ∈ m.Q};
+    tf := (λs. rlnst ds dr (m.tf (s - ds)));
+    q0 := m.q0 + ds;
+    In := MAP (λn. n + dr) m.In;
+    Out := m.Out + dr;
+  |>
+`;
+
+val dup_def = Define `
+  dup s0 ro rd rt = <|
+    Q := {s0; s0+1; s0+2; s0+3; s0+4};
+    tf := (λs. if s = s0 then Dec ro (SOME $ s0+1) (SOME $ s0+3)
+                else if s = (s0+1) then Inc rd (SOME $ s0+2)
+                else if s = (s0+2) then Inc rt (SOME s0)
+                else if s = (s0+3) then Dec rt (SOME $ s0+4) NONE
+                else Inc ro (SOME $ s0+3)
+
+    );
+    q0 := s0;
+    In := [ro];
+    Out := rd;
+  |>
+`;
+
+
+
 (*
 Cn
     RUN (Cn m [ms]) [inputs]
 *)
-val cn_def = Define `
+(*val cn_def = Define `
 
 `;
+*)
 
 (*30 may
 1. Cn using link and dup and ..
