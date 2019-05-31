@@ -401,20 +401,23 @@ set_mapped_fixity {
 }
 
 val rlnst_def = Define `
-  (rlnst ds dr (Inc r s) = Inc (r+dr) (OPTION_MAP ((+)ds) s))
+  (rlnst mul ds dr (Inc r s) = Inc (mul*r+dr) (OPTION_MAP (λs. s*mul + ds) s))
     ∧
-  (rlnst ds dr (Dec r s1 s2) = Dec (r+dr) (OPTION_MAP ((+)ds) s1) (OPTION_MAP ((+)ds) s2))
+  (rlnst mul ds dr (Dec r s1 s2) = Dec (mul*r+dr) (OPTION_MAP (λs. s*mul + ds) s1) (OPTION_MAP (λs. s*mul + ds)  s2))
 `;
 
+(* Can prove the behavior of renamed machine is the same as original (given mul != 0)*)
 val rename_def = Define `
-  rename ds dr m = <|
-    Q := { ds + s | s ∈ m.Q};
-    tf := (λs. rlnst ds dr (m.tf (s - ds)));
-    q0 := m.q0 + ds;
-    In := MAP (λn. n + dr) m.In;
-    Out := m.Out + dr;
+  rename mul ds dr m = <|
+    Q := { ds + s * mul | s ∈ m.Q};
+    tf := (λs. rlnst mul ds dr (m.tf ((s - ds) DIV mul)));
+    q0 := m.q0*mul + ds;
+    In := MAP (λn. n*mul + dr) m.In;
+    Out := m.Out*mul + dr;
   |>
 `;
+
+val test_rename_1 = EVAL `` RUN (rename 3 2 1 addition) [2; 5]``
 
 val dup_def = Define `
   dup s0 ro rd rt = <|
@@ -432,16 +435,46 @@ val dup_def = Define `
   |>
 `;
 
+val pip_def = Define`
+  pip m1s m2 m 
+  (* pass m1s.Out to m.in 
+    then link to m2 *)
+  end_link (m1.tf s) m2.q0
+`;
 
+val par_def = Define `
+  par m ms size = <|
+    Q := {s | (∃mm. s ∈ mm.Q ∧ MEM mm ms) ∨ (s ∈ m.Q)};
+    tf := (λs. let cm = HD $ FILTER (λmm. s ∈ mm.Q) ms in 
+                if findi cm ms = LENGTH ms - 1 then pip (cm.tf s) m
+                else pip s cm (EL ((findi cm ms) + 1) ms)
+                );
+    q0 := (HD ms).q0;
+    In := GENLIST SUC size
+    Out := m.Out;
+  |>
+`;
 
 (*
 Cn
     RUN (Cn m [ms]) [inputs]
 *)
-(*val cn_def = Define `
 
+val cn_def = Define `
+  cn m ms = <|
+    Q := {s | (∃mm. s ∈ mm.Q ∧ MEM mm ms) ∨ (s ∈ m.Q)};
+    tf := (λs. );
+  |>
 `;
-*)
+
+val top_cn_def = Define `
+  top_cn m ms size = let ds = (LENGTH ms) * (size + 1) * 5; 
+                          ms' =  MAPi (λi m. rename (LENGTH ms + 1) ds (size+1)) ms;
+                            mdups mi m = MAPi (λi r. dup (mi*(size+1)*5+5*i) (i+1) r 0) m.In
+                            in 
+                            MAPi (λi m. dup () ro rd rt 
+                      
+`;
 
 (*30 may
 1. Cn using link and dup and ..
