@@ -409,7 +409,7 @@ val rlnst_def = Define `
 (* Can prove the behavior of renamed machine is the same as original (given mul != 0)*)
 val rename_def = Define `
   rename mul ds dr m = <|
-    Q := { ds + s * mul | s ∈ m.Q};
+    Q := {ds + s * mul | s ∈ m.Q};
     tf := (λs. rlnst mul ds dr (m.tf ((s - ds) DIV mul)));
     q0 := m.q0*mul + ds;
     In := MAP (λn. n*mul + dr) m.In;
@@ -461,22 +461,26 @@ Cn
 *)
 
 val cn_def = Define `
-  cn m ms = <|
+  cn m ms input_size = <|
     Q := {s | (∃mm. s ∈ mm.Q ∧ MEM mm ms) ∨ (s ∈ m.Q)};
     tf := (λs. );
+    q0 := (HD ms).q0;
+    In := GENLIST SUC input_size;
+    Out := m.Out;
   |>
 `;
 
 val top_cn_def = Define `
-  top_cn m ms size = let ds = (LENGTH ms) * (size + 1) * 5; 
-                          ms' =  MAPi (λi m. rename (LENGTH ms + 1) ds (size+1)) ms;
-                            mdups mi m = MAPi (λi r. dup (mi*(size+1)*5+5*i) (i+1) r 0) m.In
-                            in 
-                            MAPi (λi m. dup () ro rd rt 
-                      
+  top_cn m ms input_size = let ds = (LENGTH ms) * (input_size + 1) * 5; 
+                          msr =  MAPi (λi mm. rename (LENGTH ms + 1) (ds+i+1) (input_size+1+i) mm) ms;
+                            mdups mi mm = MAPi (λi r. dup (mi*(size+1)*5+5*i) (i+1) r 0) mm.In; 
+                              ms' = MAPi (λi mm. mdups i mm) msr;
+                                m' = rename (LENGTH ms + 1) ds dr m 
+                                  in 
+                                   cn m' ms' input_size
 `;
 
-(*30 may
+(* 30 may
 1. Cn using link and dup and ..
 2. use number for states
 *)
