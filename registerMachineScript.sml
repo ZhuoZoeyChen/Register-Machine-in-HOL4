@@ -473,9 +473,13 @@ val end_state_def = Define `
 *)
 
 val cn_def = Define `
-  cn m ms input_size = <|
+  cn m ms ms' input_size = <|
     Q := {s | (∃mm. s ∈ mm.Q ∧ MEM mm ms) ∨ (s ∈ m.Q)};
-    tf := (λs. if end_state s ms then m' = feed_main m ms size);
+    tf := (λs. if s = NONE then 
+                  let m' = feed_main m ms size 
+                    in
+                      m.'tf m'.q0
+              else ms'.tf s);
     q0 := (HD ms).q0;
     In := GENLIST SUC input_size;
     Out := m.Out;
@@ -489,7 +493,7 @@ val top_cn_def = Define `
                               ms' = MAPi (λi mm. mdups i mm) msr;
                                 m' = rename (LENGTH ms + 1) ds dr m 
                                   in 
-                                   cn m' (link_all ms') input_size
+                                   cn m' ms' (link_all ms') input_size
 `;
 
 (* 30 may
