@@ -466,10 +466,16 @@ Cn
     RUN (Cn m [ms]) [inputs]
 *)
 
+(*
+val end_state_def = Define `
+  end_state s = if s = NONE then true else false
+`;
+*)
+
 val cn_def = Define `
   cn m ms input_size = <|
     Q := {s | (∃mm. s ∈ mm.Q ∧ MEM mm ms) ∨ (s ∈ m.Q)};
-    tf := (λs. if s = ms.Out then link_main);
+    tf := (λs. if end_state s ms then m' = feed_main m ms size);
     q0 := (HD ms).q0;
     In := GENLIST SUC input_size;
     Out := m.Out;
