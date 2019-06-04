@@ -284,12 +284,6 @@ nm : num -> action
 
 (*
 TODO 23.May
-1. const
-2. binary composition 
-  (x+1)*(y+3)
-    RUN (Bn m [m1; m2])
-3. Cn
-    RUN (Cn m [ms]) [inputs]
 4. Well formness 
 *)
 
@@ -400,6 +394,10 @@ val link_all_def = Define`
     | x::y::ys => link_all (link x y)::ys
 `;
 
+val feed_main_def = Define `
+  feed_main m ms size = MAPi (λi mm. dup ((LENGTH ms - 1)*(size+1)*5+5*(LENGTH (HD ms).In)+i*5) mm.Out (EL i m.In) 0) ms
+`;
+
 set_mapped_fixity {
   term_name = "link",
   tok = "⇨",
@@ -471,7 +469,7 @@ Cn
 val cn_def = Define `
   cn m ms input_size = <|
     Q := {s | (∃mm. s ∈ mm.Q ∧ MEM mm ms) ∨ (s ∈ m.Q)};
-    tf := (λs. );
+    tf := (λs. if s = ms.Out then link_main);
     q0 := (HD ms).q0;
     In := GENLIST SUC input_size;
     Out := m.Out;
@@ -484,9 +482,8 @@ val top_cn_def = Define `
                             mdups mi mm = MAPi (λi r. dup (mi*(size+1)*5+5*i) (i+1) r 0) mm.In; 
                               ms' = MAPi (λi mm. mdups i mm) msr;
                                 m' = rename (LENGTH ms + 1) ds dr m 
-                                linked_ms = 
                                   in 
-                                   cn m' ms' input_size
+                                   cn m' (link_all ms') input_size
 `;
 
 (* 30 may
