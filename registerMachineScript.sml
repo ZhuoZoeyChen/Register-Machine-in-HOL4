@@ -394,6 +394,12 @@ val link_def = Define`
   |>
 `;
 
+val link_all_def = Define`
+  link_all ms = case ms of 
+    | [x::y] => link x y
+    | x::y::ys => link_all (link x y)::ys
+`;
+
 set_mapped_fixity {
   term_name = "link",
   tok = "⇨",
@@ -435,11 +441,12 @@ val dup_def = Define `
   |>
 `;
 
+(*
 val pip_def = Define`
   pip m1s m2 m 
   (* pass m1s.Out to m.in 
     then link to m2 *)
-  end_link (m1.tf s) m2.q0
+  (*end_link (m1.tf s) m2.q0
 `;
 
 val par_def = Define `
@@ -450,10 +457,11 @@ val par_def = Define `
                 else pip s cm (EL ((findi cm ms) + 1) ms)
                 );
     q0 := (HD ms).q0;
-    In := GENLIST SUC size
+    In := GENLIST SUC size;
     Out := m.Out;
   |>
 `;
+*)
 
 (*
 Cn
@@ -476,6 +484,7 @@ val top_cn_def = Define `
                             mdups mi mm = MAPi (λi r. dup (mi*(size+1)*5+5*i) (i+1) r 0) mm.In; 
                               ms' = MAPi (λi mm. mdups i mm) msr;
                                 m' = rename (LENGTH ms + 1) ds dr m 
+                                linked_ms = 
                                   in 
                                    cn m' ms' input_size
 `;
