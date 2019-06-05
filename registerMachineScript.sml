@@ -388,20 +388,11 @@ val link_def = Define`
   |>
 `;
 
-(*
-val link_all_def = Define`
-  link_all ms = case ms of 
-    | [x::y] => link x y
-    | x::y::ys => link_all (link x y)::ys
-`;
-*)
 
 val link_all_def = Define`
   link_all ms = FOLDL (λa m. link a m) identity ms
 `;
-(* if LENGTH ms = 0 then identity 
-                else if LENGTH ms = 1 then link identity (HD ms)
-                else link_all (link (HD ms) (EL 1 ms))::(delN 0 (delN 0 ms))*)
+
 val identity_def = Define `
   identity = <|
   Q := {1; 2};
