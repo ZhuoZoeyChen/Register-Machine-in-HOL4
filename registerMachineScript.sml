@@ -388,10 +388,29 @@ val link_def = Define`
   |>
 `;
 
+(*
 val link_all_def = Define`
   link_all ms = case ms of 
     | [x::y] => link x y
     | x::y::ys => link_all (link x y)::ys
+`;
+*)
+
+val link_all_def = Define`
+  link_all ms = if LENGTH ms > 1 then 
+`;
+
+val identity_def = Define `
+  identity = <|
+  Q := {1; 2};
+  tf := (λs. case s of 
+                | 1 => Inc 0 (SOME 2)
+                | 2 => Dec 0 NONE NONE
+        );
+  q0 := 1;
+  In := [0];
+  Out := 0;
+  |>
 `;
 
 val feed_main_def = Define `
