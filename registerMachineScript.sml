@@ -100,20 +100,23 @@ val const_def = Define `
       )
 `;
 
+
 val identity_def = Define `
   identity = <|
-  Q := {1; 2};
+  Q := {0; 1};
   tf := (λs. case s of 
-                | 1 => Inc 0 (SOME 2)
-                | 2 => Dec 0 NONE NONE
+                | 0 => Inc 0 (SOME 1)
+                | 1 => Dec 0 NONE NONE
         );
-  q0 := 1;
+  q0 := 0;
   In := [0];
   Out := 0;
   |>
 `;
 
-(* Well-formness *)
+val test_iden = EVAL ``RUN identity [5]``;
+
+(* Well-formedness *)
 (* TODO *)
 val wfrm_def = Define `
   wfrm m ⇔ 
@@ -162,14 +165,14 @@ val addition_def = Define `
 	addition = <| 
       Q := {1; 2; 3; 4; 5} ; 
       tf := (λn. case n of 
-      			| 1 => Dec 0 (SOME 2) (SOME 4)
+      			| 1 => Dec 4 (SOME 2) (SOME 4)
       			| 2 => Inc 1 (SOME 3)
       			| 3 => Inc 2 (SOME 1)
       			| 4 => Dec 2 (SOME 5) NONE
-      			| 5 => Inc 0 (SOME 4)
+      			| 5 => Inc 4 (SOME 4)
       		) ;
       q0 := 1 ;
-      In := [0; 1] ; (* include the accumulator or not ?*)
+      In := [4; 1] ; (* include the accumulator or not ?*)
       Out := 1 ;
 	|>
 `;
@@ -371,21 +374,27 @@ val link_def = Define`
   |>
 `;
 
-
-val link_all_def = Define`
-  link_all ms = FOLDL (λa m. link a m) identity ms
-`;
-
-val feed_main_def = Define `
-  feed_main m ms size = MAPi (λi mm. dup ((LENGTH ms - 1)*(size+1)*5+5*(LENGTH (HD ms).In)+i*5) mm.Out (EL i m.In) 0) ms
-`;
-
-set_mapped_fixity {
+val _ = set_mapped_fixity {
   term_name = "link",
   tok = "⇨",
   fixity = Infixl 500
 }
 
+val link_all_def = Define`
+  (link_all [] = identity) ∧     
+  (link_all (m::ms) = FOLDL (λa m. a ⇨ m) m ms)
+`;
+
+val test_lka = EVAL``link_all [(mrInst 1 (msInst 1 identity)); (mrInst 2 (msInst 2 identity))]``;
+
+val test_ms_id = EVAL``msInst 1 identity``;
+
+(* Feed the output of all sub machines to the main machine *)
+val feed_main_def = Define `
+  feed_main m ms size = MAPi (λi mm. dup ((LENGTH ms - 1)*(size+1)*5+5*(LENGTH (HD ms).In)+i*5) mm.Out (EL i m.In) 0) ms
+`;
+
+(* Helper func for rename *)
 val rlnst_def = Define `
   (rlnst mul ds dr (Inc r s) = Inc (mul*r+dr) (OPTION_MAP (λs. s*mul + ds) s))
     ∧
@@ -403,8 +412,10 @@ val rename_def = Define `
   |>
 `;
 
+
 val test_rename_1 = EVAL `` RUN (rename 3 2 1 addition) [2; 5]``
 
+(* Dup with defined initial states *)
 val dup_def = Define `
   dup s0 ro rd rt = <|
     Q := {s0; s0+1; s0+2; s0+3; s0+4};
@@ -421,47 +432,23 @@ val dup_def = Define `
   |>
 `;
 
-(*
-val pip_def = Define`
-  pip m1s m2 m 
-  (* pass m1s.Out to m.in 
-    then link to m2 *)
-  (*end_link (m1.tf s) m2.q0
-`;
+val test_dup = EVAL ``RUN (dup 0 1 5 0) [6]``;
 
-val par_def = Define `
-  par m ms size = <|
-    Q := {s | (∃mm. s ∈ mm.Q ∧ MEM mm ms) ∨ (s ∈ m.Q)};
-    tf := (λs. let cm = HD $ FILTER (λmm. s ∈ mm.Q) ms in 
-                if findi cm ms = LENGTH ms - 1 then pip (cm.tf s) m
-                else pip s cm (EL ((findi cm ms) + 1) ms)
-                );
-    q0 := (HD ms).q0;
-    In := GENLIST SUC size;
-    Out := m.Out;
-  |>
-`;
+val test_dup2 = EVAL ``run_machine (dup 0 1 5 0) (init_machine (dup 0 1 5 0) [6])``;
+
+
+
+(* Composition of machines
+    Cn :: main machine -> [sub machines] -> combined machine 
 *)
-
-(*
-Cn
-    RUN (Cn m [ms]) [inputs]
-*)
-
-(*
-val end_state_def = Define `
-  end_state s = if s = NONE then true else false
-`;
-*)
-
 val cn_def = Define `
-  cn m ms ms' input_size = <|
+  cn m ms linked_ms input_size = <|
     Q := {s | (∃mm. s ∈ mm.Q ∧ MEM mm ms) ∨ (s ∈ m.Q)};
     tf := (λs. if s = NONE then 
-                  let m' = feed_main m ms size 
-                    in
-                      m.'tf m'.q0
-              else ms'.tf s);
+                  (let main = feed_main m ms size in
+                      main.tf main.q0)
+               if s ≠ NONE then linked_ms.tf s
+          );
     q0 := (HD ms).q0;
     In := GENLIST SUC input_size;
     Out := m.Out;
@@ -469,17 +456,71 @@ val cn_def = Define `
 `;
 
 val top_cn_def = Define `
-  top_cn m ms input_size = let ds = (LENGTH ms) * (input_size + 1) * 5; 
-                          msr =  MAPi (λi mm. rename (LENGTH ms + 1) (ds+i+1) (input_size+1+i) mm) ms;
-                            mdups mi mm = MAPi (λi r. dup (mi*(size+1)*5+5*i) (i+1) r 0) mm.In; 
-                              ms' = MAPi (λi mm. mdups i mm) msr;
-                                m' = rename (LENGTH ms + 1) ds dr m 
-                                  in 
-                                   cn m' ms' (link_all ms') input_size
+  top_cn m ms input_size = 
+    let ds = (LENGTH ms) * (input_size + 1) * 5; 
+        msr =  MAPi (λi mm. rename (LENGTH ms + 1) (ds+i+1) (input_size+1+i) mm) ms;
+        mdups mi mm = MAPi (λi r. dup (mi*(size+1)*5+5*i) (i+1) r 0) mm.In; 
+        ms' = MAPi (λi mm. mdups i mm) msr;
+        m' = rename (LENGTH ms + 1) ds dr m;
+        mxs = (LENGTH ms - 1)*(input_size+1)*5+5*input_size)
+        feed = feed_main m ms size
+    in 
+        cn m' ms' (link_all ms') input_size
 `;
 
+val rInst_def = Define `
+  (rInst mnum (Inc r sopt) = Inc (npair mnum r) sopt)
+    ∧
+  (rInst mnum (Dec r sopt1 sopt2) = Dec (npair mnum r) sopt1 sopt2)
+`;
+
+val mrInst_def = Define `
+  mrInst mnum m = <|
+    Q := m.Q;
+    tf := (λs. rInst mnum (m.tf s));
+    q0 := m.q0;
+    In := MAP (λr. npair mnum r) m.In;
+    Out := npair mnum m.Out;
+  |>
+`;
+
+val test_mrInst_add = EVAL``RUN (mrInst 2 addition) [15; 27]``;
+
+val sInst_def = Define `
+  (sInst mnum (Inc r sopt) = Inc r (OPTION_MAP (npair mnum) sopt))
+    ∧
+  (sInst mnum (Dec r sopt1 sopt2) = Dec r (OPTION_MAP (npair mnum) sopt1) (OPTION_MAP (npair mnum) sopt2))
+`;
+
+val msInst_def = Define `
+  msInst mnum m = <|
+    Q := {npair mnum s | s ∈ m.Q};
+    tf := (λs. sInst mnum $ m.tf (nsnd s));
+    q0 := npair mnum m.q0;
+    In := m.In;
+    Out := m.Out;
+  |>
+`;
+
+val test_msInst_add = EVAL``RUN (msInst 2 addition) [15; 27]``;
+
+val Cn_def = Define `
+  Cn m ms = 
+    let isz = LENGTH (HD ms).In;
+        mms = MAPi (λi m. mrInst (i+2) m) (m::ms);
+        m' = HD mms;
+        ms' = TL mms;
+        ics = FLAT (MAP (λm. MAPi (λi r. dup 1 (npair 0 i) r (npair 1 0)) m.In) ms');
+        ocs = MAPi (λi mm. dup 1 mm.Out (EL i m.In) (npair 1 0)) ms';
+        mix = ics++ms'++ocs++[m'];
+        mix' = MAPi msInst mix;
+    in 
+      link_all mix'
+`;
+
+val test_Cn_addii = EVAL ``RUN (Cn addition [identity; identity]) [23]``;
+
 (* 30 may
-1. Cn using link and dup and ..
 2. use number for states
 *)
 
