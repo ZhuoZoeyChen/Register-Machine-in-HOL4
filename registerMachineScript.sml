@@ -99,9 +99,31 @@ val const_def = Define `
       |>)
       )
 `;
-(* (run_machine m (rs, NONE) = init_machine m rs) 
-	∧ 
-	*)
+
+val identity_def = Define `
+  identity = <|
+  Q := {1; 2};
+  tf := (λs. case s of 
+                | 1 => Inc 0 (SOME 2)
+                | 2 => Dec 0 NONE NONE
+        );
+  q0 := 1;
+  In := [0];
+  Out := 0;
+  |>
+`;
+
+(* Well-formness *)
+(* TODO *)
+val wfrm_def = Define `
+  wfrm m ⇔ 
+    FINITE m.Q ∧
+    FINITE m.In ∧
+    m.q0 ∈ m.Q ∧
+    (∀s. s ∈ m.Q ⇒ m.tf s ∈ (m.Q ∨ NONE)) ∧
+    (∃s. s ∈ m.Q ∧ m.tf s = NONE)
+`;
+
 
 (* ------------ examples ------------
    ---------------------------------- 
@@ -200,7 +222,8 @@ val double_def = Define `
 
 
 (* Machine and math operation returns the same output *)
-(* val correct2_def = Define `
+(* TODO *)
+val correct2_def = Define `
 	correct2 f m ⇔ ∀a b. ∃rs. (run_machine m (init_machine m [a;b]) = (rs, NONE)) ∧ (rs m.Out = f a b)
 `;
 
@@ -211,10 +234,9 @@ Proof
   rw[run_machine_def, addition_def] >>
   metis_tac[] >>
 QED
-*)
+
 
 (* WANT : runM (seq m1 m2) rs_so =  runM m2 (runM m1 rs_so) {same result}*)
-
 val seq_def = Define `
 	seq m1 m2 = <|
 	    Q := { s1*2+2 | s1 ∈ m1.Q } ∪ { s2*2+3 | s2 ∈ m2.Q } ∪ {0;1};
@@ -243,48 +265,9 @@ val seq_def = Define `
 val seq_add_trans_lemma = EVAL `` RUN (seq addition double) [15; 27]``
 
 
-
-(* val wfrm_def = Define `
-`;
-*)
-
 (*
 TODOS:
-3. define well formed register machine
 4. add return state to all existing functions
-*)
-
-
-(*
-
-TODOS 9. May . 2019
-1. Prove addition is correct
-(*
-
-tf: regs -> num -> num # regs
-
-nm : num -> action 
-
-if regs n = 0 then 
-	regs1 = regs
-else 
-	regs2 = regs (| n |-> regs n - 1 |)
-
-nm : num -> action
-
-(| Q 
-	nm: state -> action
-	rm
-	apply : cstate -> regs -> regs * cstate option
-
-	|)
-
-*)
-
-
-(*
-TODO 23.May
-4. Well formness 
 *)
 
 
@@ -391,19 +374,6 @@ val link_def = Define`
 
 val link_all_def = Define`
   link_all ms = FOLDL (λa m. link a m) identity ms
-`;
-
-val identity_def = Define `
-  identity = <|
-  Q := {1; 2};
-  tf := (λs. case s of 
-                | 1 => Inc 0 (SOME 2)
-                | 2 => Dec 0 NONE NONE
-        );
-  q0 := 1;
-  In := [0];
-  Out := 0;
-  |>
 `;
 
 val feed_main_def = Define `
