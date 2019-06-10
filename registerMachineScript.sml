@@ -118,6 +118,7 @@ val test_iden = EVAL ``RUN identity [5]``;
 
 (* Well-formedness *)
 (* TODO *)
+(*
 val wfrm_def = Define `
   wfrm m ⇔ 
     FINITE m.Q ∧
@@ -126,7 +127,7 @@ val wfrm_def = Define `
     (∀s. s ∈ m.Q ⇒ m.tf s ∈ (m.Q ∨ NONE)) ∧
     (∃s. s ∈ m.Q ∧ m.tf s = NONE)
 `;
-
+*)
 
 (* ------------ examples ------------
    ---------------------------------- 
@@ -165,14 +166,14 @@ val addition_def = Define `
 	addition = <| 
       Q := {1; 2; 3; 4; 5} ; 
       tf := (λn. case n of 
-      			| 1 => Dec 4 (SOME 2) (SOME 4)
+      			| 1 => Dec 0 (SOME 2) (SOME 4)
       			| 2 => Inc 1 (SOME 3)
       			| 3 => Inc 2 (SOME 1)
       			| 4 => Dec 2 (SOME 5) NONE
-      			| 5 => Inc 4 (SOME 4)
+      			| 5 => Inc 0 (SOME 4)
       		) ;
       q0 := 1 ;
-      In := [4; 1] ; (* include the accumulator or not ?*)
+      In := [0; 1] ; 
       Out := 1 ;
 	|>
 `;
@@ -216,7 +217,7 @@ val double_def = Define `
     |>
   `;
 
-  val foo = EVAL ``RUN double [15]``
+  val test_double = EVAL ``RUN double [15]``
 
  (* ------------ END examples ------------
    -------------------------------------- 
@@ -226,6 +227,7 @@ val double_def = Define `
 
 (* Machine and math operation returns the same output *)
 (* TODO *)
+
 val correct2_def = Define `
 	correct2 f m ⇔ ∀a b. ∃rs. (run_machine m (init_machine m [a;b]) = (rs, NONE)) ∧ (rs m.Out = f a b)
 `;
@@ -233,9 +235,10 @@ val correct2_def = Define `
 Theorem addition_correct:
 	correct2 (+) addition 
 Proof
-  rw[correct2_def, init_machine_def, run_machine_1_def] >>
+  (*rw[correct2_def, init_machine_def, run_machine_1_def] >>
   rw[run_machine_def, addition_def] >>
-  metis_tac[] >>
+  metis_tac[] >>*)
+  cheat
 QED
 
 
@@ -281,7 +284,7 @@ state 11-20 : duplicating x, y into m2.In
 state 21-22 : move m1.out to m.in
 state 23-24 : move m2.out to m.in
 *)
-
+(*
 val bn_def = Define `
   bn m m1 m2 = <| 
     Q := {s * 3 + 25 | s ∈ m.Q} ∪ {s1 * 3 + 26 | s1 ∈ m1.Q} ∪ {s2 * 3 + 27 | s2 ∈ m2.Q} ∪ {x | x > 0 ∧ x < 25} ∪ {0};
@@ -333,8 +336,9 @@ val bn_def = Define `
     Out := m.Out;
   |>
 `;
+*)
 
-
+(* dup0: Could be removed *)
 val dup0_def = Define `
   dup0 r1 r2 r3= <| 
     Q := {1;2;3;4;5};
@@ -438,9 +442,10 @@ val test_dup2 = EVAL ``run_machine (dup 0 1 5 0) (init_machine (dup 0 1 5 0) [6]
 
 
 
-(* Composition of machines
+(* Composition of machines (Old Version)
     Cn :: main machine -> [sub machines] -> combined machine 
 *)
+(*
 val cn_def = Define `
   cn m ms linked_ms input_size = <|
     Q := {s | (∃mm. s ∈ mm.Q ∧ MEM mm ms) ∨ (s ∈ m.Q)};
@@ -467,6 +472,7 @@ val top_cn_def = Define `
     in 
         cn m' ms' (link_all ms') input_size
 `;
+*)
 
 val rInst_def = Define `
   (rInst mnum (Inc r sopt) = Inc (npair mnum r) sopt)
