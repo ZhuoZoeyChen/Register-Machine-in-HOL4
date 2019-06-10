@@ -51,8 +51,7 @@ state here is a number *)
 val run_machine_1_def = Define `
     (run_machine_1 m (rs, NONE) = (rs, NONE)) 
     ∧
-	(run_machine_1 m (rs, SOME s) = if s ∉ m.Q then (rs ,NONE) 
-   else case m.tf s of
+	(run_machine_1 m (rs, SOME s) = case m.tf s of
 		| Inc r so => ( rs (| r |-> rs r + 1 |), so )
 		| Dec r so1 so2 => if rs r > 0 then ( rs (| r |-> rs r - 1 |) , so1)
 		                      else ( rs, so2))
@@ -217,7 +216,8 @@ val double_def = Define `
     |>
   `;
 
-  val test_double = EVAL ``RUN double [15]``
+val test_double = EVAL ``RUN double [15]``
+
 
  (* ------------ END examples ------------
    -------------------------------------- 
@@ -529,5 +529,6 @@ val test_Cn_addii = EVAL ``RUN (Cn addition [identity; identity]) [23]``;
 (* 30 may
 2. use number for states
 *)
+
 
 val _ = export_theory ()
