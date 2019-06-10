@@ -394,18 +394,22 @@ val test_lka = EVAL``link_all [(mrInst 1 (msInst 1 identity)); (mrInst 2 (msInst
 val test_ms_id = EVAL``msInst 1 identity``;
 
 (* Feed the output of all sub machines to the main machine *)
-val feed_main_def = Define `
+(* val feed_main_def = Define `
   feed_main m ms size = MAPi (λi mm. dup ((LENGTH ms - 1)*(size+1)*5+5*(LENGTH (HD ms).In)+i*5) mm.Out (EL i m.In) 0) ms
 `;
+*)
 
 (* Helper func for rename *)
+(*
 val rlnst_def = Define `
   (rlnst mul ds dr (Inc r s) = Inc (mul*r+dr) (OPTION_MAP (λs. s*mul + ds) s))
     ∧
   (rlnst mul ds dr (Dec r s1 s2) = Dec (mul*r+dr) (OPTION_MAP (λs. s*mul + ds) s1) (OPTION_MAP (λs. s*mul + ds)  s2))
 `;
+*)
 
 (* Can prove the behavior of renamed machine is the same as original (given mul != 0)*)
+(*
 val rename_def = Define `
   rename mul ds dr m = <|
     Q := {ds + s * mul | s ∈ m.Q};
@@ -415,9 +419,11 @@ val rename_def = Define `
     Out := m.Out*mul + dr;
   |>
 `;
+*)
 
-
+(*
 val test_rename_1 = EVAL `` RUN (rename 3 2 1 addition) [2; 5]``
+*)
 
 (* Dup with defined initial states *)
 val dup_def = Define `
@@ -529,6 +535,5 @@ val test_Cn_addii = EVAL ``RUN (Cn addition [identity; identity]) [23]``;
 (* 30 may
 2. use number for states
 *)
-
 
 val _ = export_theory ()
