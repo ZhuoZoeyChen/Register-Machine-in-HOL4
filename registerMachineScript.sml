@@ -384,12 +384,29 @@ val _ = set_mapped_fixity {
   fixity = Infixl 500
 }
 
+val identity2_def = Define `
+  identity2 = <|
+  Q := {10; 11};
+  tf := (λs. case s of 
+                | 10 => Inc 10 (SOME 11)
+                | 11 => Dec 10 NONE NONE
+        );
+  q0 := 10;
+  In := [10];
+  Out := 10;
+  |>
+`;
+
+val test_link = EVAL `` RUN (identity ⇨ identity2) [15] ``;
+
 val link_all_def = Define`
   (link_all [] = identity) ∧     
-  (link_all (m::ms) = FOLDL (λa m. a ⇨ m) m ms)
+  (link_all (m::ms) = FOLDL (λa mm. a ⇨ mm) m ms)
 `;
 
 val test_lka = EVAL``link_all [(mrInst 1 (msInst 1 identity)); (mrInst 2 (msInst 2 identity))]``;
+
+val test_link_out = EVAL ``RUN (link_all [identity;identity2]) [5]``;
 
 val test_ms_id = EVAL``msInst 1 identity``;
 
@@ -498,6 +515,8 @@ val mrInst_def = Define `
 
 val test_mrInst_add = EVAL``RUN (mrInst 3 addition) [15; 26]``;
 
+val test_mrInst_add_init = EVAL ``init_machine (mrInst 3 addition) [15; 26]``;
+
 val test_mrInst_add2 = EVAL 
   ``run_machine (mrInst 3 addition) (init_machine (mrInst 3 addition) [15; 26])``;
 
@@ -520,25 +539,54 @@ val msInst_def = Define `
 
 val test_msInst_add = EVAL``RUN (msInst 2 addition) [15; 27]``;
 
+val test_msInst_init = EVAL ``init_machine (msInst 2 addition) [15;27]``;
+
+val test_msInst_add2 = EVAL 
+  ``run_machine (msInst 3 addition) (init_machine (msInst 3 addition) [15; 26])``;
+
+
+val input_machine_def = Define `
+  input_machine inp= <|
+  Q := {0; 1};
+  tf := (λs. case s of 
+                | 0 => Inc 0 (SOME 1)
+                | 1 => Dec 0 NONE NONE
+        );
+  q0 := 0;
+  In := MAP (λr. npair 0 (r-1)) (GENLIST SUC inp);
+  Out := 0;
+  |>
+`;
+
+val test_input = EVAL ``input_machine 5 ``;
+
 val Cn_def = Define `
   Cn m ms = 
     let isz = LENGTH (HD ms).In;
-        mms = MAPi (λi m. mrInst (i+2) m) (m::ms);
+        mms = MAPi (λi mm. mrInst (i+2) mm) (m::ms);
         m' = HD mms;
         ms' = TL mms;
-        ics = FLAT (MAP (λm. MAPi (λi r. dup 1 (npair 0 i) r (npair 1 0)) m.In) ms');
-        ocs = MAPi (λi mm. dup 1 mm.Out (EL i m.In) (npair 1 0)) ms';
-        mix = ics++ms'++ocs++[m'];
-        mix' = MAPi msInst mix;
+        ics = FLAT (MAP (λmm. MAPi (λi r. dup (npair 0 i+5) (npair 0 i) r (npair 1 0)) mm.In) ms');
+        ocs = MAPi (λi mm. dup (npair 1 i+5) mm.Out (EL i m'.In) (npair 1 0)) ms';
+        mix = (input_machine isz)::ics++ms'++ocs++[m'];
+        mix' = MAPi (λi mm. msInst (i+2) mm) mix;
     in 
       link_all mix'
 `;
 
-val test_Cn_addii = EVAL ``RUN (Cn addition [addition; addition]) [2;2]``;
+(* what would be (npair x y)+1 *)
 
-val test_add = EVAL ``init_machine addition [2;2]``;
 
-val test_Cn_addin = EVAL ``run_machine (Cn addition [addition; addition]) (init_machine (Cn addition [addition; addition]) [15; 26])``;
+
+val test_Cn_iden = EVAL ``RUN (Cn identity [identity]) [5]``;
+
+val test_Cn_ideninit = EVAL ``init_machine (Cn identity [identity]) [15]``;
+
+val test_Cn_add = EVAL ``RUN (Cn addition [addition; addition]) [2;2]``;
+
+val test_Cn_addinit = EVAL ``init_machine (Cn addition [addition; addition]) [15;27]``;
+
+val test_Cn_addrun = EVAL ``run_machine (Cn addition [addition; addition]) (init_machine (Cn addition [addition; addition]) [15; 26])``;
 
 
 
