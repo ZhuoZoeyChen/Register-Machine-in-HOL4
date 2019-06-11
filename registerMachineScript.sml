@@ -165,14 +165,14 @@ val addition_def = Define `
 	addition = <| 
       Q := {1; 2; 3; 4; 5} ; 
       tf := (λn. case n of 
-      			| 1 => Dec 0 (SOME 2) (SOME 4)
+      			| 1 => Dec 5 (SOME 2) (SOME 4)
       			| 2 => Inc 1 (SOME 3)
       			| 3 => Inc 2 (SOME 1)
       			| 4 => Dec 2 (SOME 5) NONE
-      			| 5 => Inc 0 (SOME 4)
+      			| 5 => Inc 5 (SOME 4)
       		) ;
       q0 := 1 ;
-      In := [0; 1] ; 
+      In := [5; 1] ; 
       Out := 1 ;
 	|>
 `;
@@ -444,7 +444,7 @@ val dup_def = Define `
 
 val test_dup = EVAL ``RUN (dup 0 1 5 0) [6]``;
 
-val test_dup2 = EVAL ``run_machine (dup 0 1 5 0) (init_machine (dup 0 1 5 0) [6])``;
+val test_dup2 = EVAL ``run_machine (dup 3 2 5 0) (init_machine (dup 3 2 5 0) [15])``;
 
 
 
@@ -496,12 +496,16 @@ val mrInst_def = Define `
   |>
 `;
 
-val test_mrInst_add = EVAL``RUN (mrInst 2 addition) [15; 27]``;
+val test_mrInst_add = EVAL``RUN (mrInst 3 addition) [15; 26]``;
+
+val test_mrInst_add2 = EVAL 
+  ``run_machine (mrInst 3 addition) (init_machine (mrInst 3 addition) [15; 26])``;
 
 val sInst_def = Define `
   (sInst mnum (Inc r sopt) = Inc r (OPTION_MAP (npair mnum) sopt))
     ∧
-  (sInst mnum (Dec r sopt1 sopt2) = Dec r (OPTION_MAP (npair mnum) sopt1) (OPTION_MAP (npair mnum) sopt2))
+  (sInst mnum (Dec r sopt1 sopt2) = 
+      Dec r (OPTION_MAP (npair mnum) sopt1) (OPTION_MAP (npair mnum) sopt2))
 `;
 
 val msInst_def = Define `
@@ -530,7 +534,7 @@ val Cn_def = Define `
       link_all mix'
 `;
 
-val test_Cn_addii = EVAL ``RUN (Cn addition [identity; identity]) [23]``;
+val test_Cn_addii = EVAL ``RUN (Cn addition [addition; addition]) [2;2]``;
 
 (* 30 may
 2. use number for states
