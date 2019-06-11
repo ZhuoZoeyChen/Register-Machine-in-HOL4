@@ -541,29 +541,6 @@ val msInst_def = Define `
 
 val test_msInst_add = EVAL``RUN (msInst 2 addition) [15; 27]``;
 
-val test_msInst_init = EVAL ``init_machine (msInst 2 addition) [15;27]``;
-
-val test_ms = EVAL ``msInst 2 addition``;
-
-val test_msInst_add2 = EVAL 
-  ``run_machine (msInst 2 addition) (init_machine (msInst 2 addition) [15; 26])``;
-
-
-val input_machine_def = Define `
-  input_machine inp= <|
-  Q := {0; 1};
-  tf := (λs. case s of 
-                | 0 => Inc 0 (SOME 1)
-                | 1 => Dec 0 NONE NONE
-        );
-  q0 := 0;
-  In := MAP (λr. npair 0 (r-1)) (GENLIST SUC inp);
-  Out := 0;
-  |>
-`;
-
-val test_input = EVAL ``input_machine 5 ``;
-
 val Cn_def = Define `
   Cn m ms = 
     let isz = LENGTH (HD ms).In;
