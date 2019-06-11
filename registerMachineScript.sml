@@ -536,6 +536,12 @@ val Cn_def = Define `
 
 val test_Cn_addii = EVAL ``RUN (Cn addition [addition; addition]) [2;2]``;
 
+val test_add = EVAL ``init_machine addition [2;2]``;
+
+val test_Cn_addin = EVAL ``run_machine (Cn addition [addition; addition]) (init_machine (Cn addition [addition; addition]) [15; 26])``;
+
+
+
 (* 30 may
 2. use number for states
 *)
