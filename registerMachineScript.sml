@@ -515,7 +515,9 @@ val mrInst_def = Define `
 
 val test_mrInst_add = EVAL``RUN (mrInst 3 addition) [15; 26]``;
 
-val test_mrInst_add_init = EVAL ``init_machine (mrInst 3 addition) [15; 26]``;
+val test_mrInst_constr = EVAL ``mrInst 3 addition``;
+
+val test_mrInst_add_init = EVAL ``init_machine test_mrInst_constr [15; 26]``;
 
 val test_mrInst_add2 = EVAL 
   ``run_machine (mrInst 3 addition) (init_machine (mrInst 3 addition) [15; 26])``;
@@ -541,8 +543,10 @@ val test_msInst_add = EVAL``RUN (msInst 2 addition) [15; 27]``;
 
 val test_msInst_init = EVAL ``init_machine (msInst 2 addition) [15;27]``;
 
+val test_ms = EVAL ``msInst 2 addition``;
+
 val test_msInst_add2 = EVAL 
-  ``run_machine (msInst 3 addition) (init_machine (msInst 3 addition) [15; 26])``;
+  ``run_machine (msInst 2 addition) (init_machine (msInst 2 addition) [15; 26])``;
 
 
 val input_machine_def = Define `
