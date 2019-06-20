@@ -36,7 +36,7 @@ val init_machine_def = Define `
 `;
 
 
-(*val init_machine_def = Define `
+(* val init_machine_def = Define `
   init_machine m i = 
     ((λn. if n > LENGTH i then 0
             else if n = 0 then 0
@@ -123,8 +123,8 @@ val test_iden = EVAL ``RUN identity [5]``;
 val wfrm_def = Define `
   wfrm m ⇔ 
     FINITE m.Q ∧
-    FINITE m.In ∧
     m.q0 ∈ m.Q ∧
+    (?s. s = m.q0) /\
     (∀s. s ∈ m.Q ⇒ m.tf s ∈ (m.Q ∨ NONE)) ∧
     (∃s. s ∈ m.Q ∧ m.tf s = NONE)
 `;
@@ -430,8 +430,6 @@ val Cn_def = Define `
       link_all mix' with In := MAP (npair 0) (GENLIST I isz)
 `;
 
-(* what would be (npair x y)+1 *)
-
 val test_MAPi = EVAL ``MAPi (λi n. i+n) [2;4;6;8] ``;
   
 val test_Cn_iden = EVAL ``RUN (Cn identity [identity]) [5]``;
@@ -446,14 +444,4 @@ val test_Cn_addinit = EVAL ``init_machine (Cn addition [addition; addition]) [15
 
 val test_Cn_addrun = EVAL ``run_machine (Cn addition [addition; addition]) (init_machine (Cn addition [addition; addition]) [15; 26])``;
 
-
-
-(* 30 may
-2. use number for states
-*)
-
-(* 12 June
-1. revert back to sets for states Q
-2. linktf takes in the states of m1 instead of m1row
-*)
 val _ = export_theory ()
