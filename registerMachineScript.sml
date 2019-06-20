@@ -18,7 +18,7 @@ val _ = Datatype ` action = Inc num (state option) | Dec num (state option) (sta
 
 val _ = Datatype‘
   rm = <|
-    Q : state ; 
+    Q : state set; 
     tf : state -> action ;
     q0 : state ;
     In : reg list ;
@@ -69,7 +69,7 @@ val RUN_def = Define `
 val const_def = Define `
     (const 0 = 
     <|
-       Q := 1 ;
+       Q := {1} ;
        tf := K $ Inc 0 NONE;
        q0 := 1 ; 
        In := [0] ;
@@ -78,7 +78,7 @@ val const_def = Define `
   ∧
     (const (SUC 0) = 
     <|
-       Q := 1 ;
+       Q := {1} ;
        tf := (λn. case n of 
                 | 1 => Inc 1 NONE
               );
@@ -91,7 +91,7 @@ val const_def = Define `
        let m = const n
      in 
       (<|
-         Q  := SUC n ;
+         Q  := {s | (s = SUC n) ∨ s IN m.Q} ;
          tf := m.tf (| SUC n |-> Inc 1 (SOME n) |) ;
          q0 := SUC n ;
          In := [0] ;
@@ -104,7 +104,7 @@ val const_def = Define `
 
 val identity_def = Define `
   identity = <|
-  Q := 1;
+  Q := {0;1};
   tf := (λs. case s of 
                 | 0 => Inc 0 (SOME 1)
                 | 1 => Dec 0 NONE NONE
@@ -138,7 +138,7 @@ val wfrm_def = Define `
 
 val empty_def = Define `
 	empty = <| 
-      Q := 1 ; 
+      Q := {1} ; 
       tf := (λn. Dec 0 (SOME 1) NONE) ;
       q0 := 1 ;
       In := [0] ;
@@ -150,7 +150,7 @@ val empty_lemma = EVAL `` run_machine empty (init_machine empty [3])``
 
 val transfer_def = Define `
 	transfer = <| 
-      Q := 2 ; 
+      Q := {1;2} ; 
       tf := (λn. case n of 
       			| 1 => Dec 0 (SOME 2) NONE 
       			| 2 => Inc 1 (SOME 1)
@@ -165,7 +165,7 @@ val transfer_lemma = EVAL `` run_machine transfer (init_machine transfer [10])``
 
 val addition_def = Define `
 	addition = <| 
-      Q := 5 ; 
+      Q := {1;2;3;4;5} ; 
       tf := (λn. case n of 
       			| 1 => Dec 5 (SOME 2) (SOME 4)
       			| 2 => Inc 1 (SOME 3)
@@ -189,7 +189,7 @@ val R_addition = EVAL ``RUN addition [15; 23]``;
 
 val multiplication_def = Define `
 	 multiplication = <| 
-      Q := 6 ; 
+      Q := {1;2;3;4;5;6} ; 
       tf := (λn. case n of 
       			| 1 => Dec 0 (SOME 2) NONE
       			| 2 => Dec 1 (SOME 3) (SOME 5)
@@ -209,7 +209,7 @@ val multiplication_RUN = EVAL ``RUN multiplication [2; 15]``;
 
 val double_def = Define `
   double = <|
-    Q := 3;
+    Q := {1;2;3};
     tf := (λs. case s of 
             | 1 => Dec 0 (SOME 2) NONE
             | 2 => Inc 1 (SOME 3) 
@@ -336,15 +336,17 @@ val end_link_def = Define `
   (end_link (Dec q d1 d2) d = Dec q (upd d1 d) (upd d2 d))
 `;
 
+(*
 val linktf_def = Define`
   linktf m1row tf1 tf2 m2init s = 
      if nfst s = m1row then end_link (tf1 s) m2init
      else tf2 s
 `;
+*)
 
 val link_def = Define`
   link m1 m2 = <|
-    Q := m2.Q;
+    Q := m1.Q ∪ m2.Q;
     tf := linktf (nfst m1.Q) m1.tf m2.tf m2.q0;
     q0 := m1.q0;
     In := m1.In;
@@ -370,7 +372,7 @@ val test_link_out = EVAL ``RUN (link_all [identity;identity2]) [5]``;
 
 val identity2_def = Define `
   identity2 = <|
-  Q := 11;
+  Q := {10;11};
   tf := (λs. case s of 
                 | 10 => Inc 10 (SOME 11)
                 | 11 => Dec 10 NONE NONE
