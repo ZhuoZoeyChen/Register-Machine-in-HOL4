@@ -336,18 +336,18 @@ val end_link_def = Define `
   (end_link (Dec q d1 d2) d = Dec q (upd d1 d) (upd d2 d))
 `;
 
-(*
+
 val linktf_def = Define`
-  linktf m1row tf1 tf2 m2init s = 
-     if nfst s = m1row then end_link (tf1 s) m2init
+  linktf m1Q tf1 tf2 m2init s = 
+     if s ∈ m1Q then end_link (tf1 s) m2init
      else tf2 s
 `;
-*)
+
 
 val link_def = Define`
   link m1 m2 = <|
     Q := m1.Q ∪ m2.Q;
-    tf := linktf (nfst m1.Q) m1.tf m2.tf m2.q0;
+    tf := linktf m1.Q m1.tf m2.tf m2.q0;
     q0 := m1.q0;
     In := m1.In;
     Out := m2.Out;
