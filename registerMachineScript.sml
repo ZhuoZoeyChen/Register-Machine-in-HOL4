@@ -51,7 +51,7 @@ state here is a number *)
 val run_machine_1_def = Define `
     (run_machine_1 m (rs, NONE) = (rs, NONE)) 
     ∧
-	(run_machine_1 m (rs, SOME s) = if s > m.Q then (rs, NONE) 
+	(run_machine_1 m (rs, SOME s) = if s ∉ m.Q then (rs, NONE) 
     else case m.tf s of
 		| Inc r so => ( rs (| r |-> rs r + 1 |), so )
 		| Dec r so1 so2 => if rs r > 0 then ( rs (| r |-> rs r - 1 |) , so1)
@@ -254,7 +254,7 @@ TODOS:
 (* dup0: Could be removed *)
 val dup0_def = Define `
   dup0 r1 r2 r3= <| 
-    Q := 5;
+    Q := {1;2;3;4;5};
     tf := (λs. case s of 
             | 1 => Dec r1 (SOME 2) (SOME 4)
             | 2 => Inc r2 (SOME 3)
@@ -308,11 +308,11 @@ fun teval n t =
     fun stop t = if !i <= 0 then true else (i := !i - 1; false)
   in
     with_flag (computeLib.stoppers, SOME stop) (computeLib.WEAK_CBV_CONV computeLib.the_compset) t
-  end
+  end;
 
 val msInst_def = Define `
   msInst mnum m = <|
-    Q := npair mnum m.Q;
+    Q := IMAGE (npair mnum) m.Q;
     tf := sInst mnum o m.tf o nsnd;
     q0 := npair mnum m.q0;
     In := m.In;
@@ -343,7 +343,6 @@ val linktf_def = Define`
      else tf2 s
 `;
 
-
 val link_def = Define`
   link m1 m2 = <|
     Q := m1.Q ∪ m2.Q;
@@ -366,10 +365,6 @@ val link_all_def = Define`
   (link_all (m::ms) = FOLDL (λa mm. a ⇨ mm) m ms)
 `;
 
-val test_lka = EVAL``link_all [(mrInst 1 (msInst 1 identity)); (mrInst 2 (msInst 2 identity))]``;
-
-val test_link_out = EVAL ``RUN (link_all [identity;identity2]) [5]``;
-
 val identity2_def = Define `
   identity2 = <|
   Q := {10;11};
@@ -382,6 +377,11 @@ val identity2_def = Define `
   Out := 10;
   |>
 `;
+
+val test_lka = EVAL``link_all [(mrInst 1 (msInst 1 identity)); (mrInst 2 (msInst 2 identity))]``;
+
+val test_link_out = EVAL ``RUN (link_all [identity;identity2]) [5]``;
+
 
 val test_id2 = EVAL ``RUN identity2 [15]``;
 
@@ -412,9 +412,6 @@ val test_1 = computeLib.RESTR_EVAL_CONV [``$o``] `` let m = MAPi (λi m. (mrInst
                  link_all mix``;
 
 val _ = computeLib.set_skip computeLib.the_compset ``COND`` (SOME 1);
-
-
-
 
 val Cn_def = Define `
   Cn m ms = 
