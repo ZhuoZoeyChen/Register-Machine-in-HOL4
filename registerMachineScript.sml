@@ -163,6 +163,22 @@ val transfer_def = Define `
 
 val transfer_lemma = EVAL `` run_machine transfer (init_machine transfer [10])``
 
+Definition simp_add_def:
+  simp_add = <|
+    Q := {1;2};
+    tf := (λs. case s of 
+            | 1 => Dec 2 (SOME 2) NONE
+            | 2 => Inc 1 (SOME 1)
+            | otherwise => ARB
+          );
+    q0 := 1;
+    In := [2; 1];
+    Out := 1;
+  |>
+End
+
+val s_addition = EVAL ``RUN simp_add [15; 23]``;
+
 val addition_def = Define `
 	addition = <| 
       Q := {1;2;3;4;5} ; 
@@ -234,8 +250,28 @@ val test_double = EVAL ``RUN double [15]``
 (* TODO *)
 
 val correct2_def = Define `
-	correct2 f m ⇔ ∀a b. ∃rs. (run_machine m (init_machine m [a;b]) = (rs, NONE)) ∧ (rs m.Out = f a b)
+	correct2 f m ⇔ ∀a b. RUN m [a;b] = f a b
 `;
+
+Theorem simp_add_correct:
+  correct2 (+) simp_add
+Proof
+  rw[simp_add_def, correct2_def, init_machine_def, run_machine_def, RUN_def] >>
+  qmatch_abbrev_tac `∃rs. (WHILE gd body s0 = (rs, NONE)) ∧ (rs 1 = a + b)` >>
+  `∀rs0. ∃rs. (WHILE gd body s0 = (rs, NONE)) ∧ (rs 1 = rs0 1 + rs0 2)`suffices_by
+  rw[run_machine_def, addition_def] >>
+  metis_tac[] >>
+  cheat
+QED
+
+(*
+TODO 21 June
+1. Finish simp_add_correct proof
+      prove suffices (line 261)
+      prove simp_Add by prove Induct_on `rs0 2`
+2. Prove addition_correct
+3. Maybe finish writing wellformedness?
+*)
 
 Theorem addition_correct:
 	correct2 (+) addition 
@@ -246,10 +282,6 @@ Proof
   cheat
 QED
 
-(*
-TODOS:
-4. add return state to all existing functions
-*)
 
 (* dup0: Could be removed *)
 val dup0_def = Define `
