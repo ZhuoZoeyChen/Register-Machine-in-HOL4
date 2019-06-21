@@ -427,18 +427,8 @@ val Cn_def = Define `
       link_all mix' with In := MAP (npair 0) (GENLIST I isz)
 `;
 
-val test_MAPi = EVAL ``MAPi (λi n. i+n) [2;4;6;8] ``;
-  
 val test_Cn_iden = EVAL ``RUN (Cn identity [identity]) [5]``;
 
-val test_Cn_iden = teval 10000 ``(Cn identity [identity])``;
-
-val test_Cn_ideninit = EVAL ``init_machine (Cn identity [identity]) [15]``;
-
 val test_Cn_add = EVAL ``RUN (Cn addition [addition; addition]) [2;2]``;
-
-val test_Cn_addinit = EVAL ``init_machine (Cn addition [addition; addition]) [15;27]``;
-
-val test_Cn_addrun = EVAL ``run_machine (Cn addition [addition; addition]) (init_machine (Cn addition [addition; addition]) [15; 26])``;
 
 val _ = export_theory ()
