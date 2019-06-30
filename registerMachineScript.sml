@@ -36,18 +36,7 @@ val init_machine_def = Define `
 `;
 
 
-(* val init_machine_def = Define `
-  init_machine m i = 
-    ((λn. if n > LENGTH i then 0
-            else if n = 0 then 0
-            else EL (n-1) i)
-    ,
-        SOME m.q0)
-`;
-*)
-
-(* run machine :: machine -> (registers, state option) ->  (registers, state option) 
-state here is a number *)
+(* run machine :: machine -> (registers, state option) ->  (registers, state option) *)
 val run_machine_1_def = Define `
     (run_machine_1 m (rs, NONE) = (rs, NONE)) 
     ∧
@@ -65,6 +54,46 @@ val run_machine_def = Define `
 val RUN_def = Define `
   RUN m i = FST (run_machine m (init_machine m i)) m.Out
 `;
+
+(*Theorem Rr_eq:
+  RUN m i = 
+Proof
+QED
+*)
+
+
+Definition conv:
+  (conv (SOME s) = s+1) ∧
+  (conv NONE = 0)
+End
+
+Definition strip_state:
+  strip_state action = case action of 
+     | Inc _ so => [conv so]
+     | Dec _ so1 so2 => conv so1::[conv so2]
+End
+
+val st = EVAL ``strip_state (Inc 5 (SOME 4))``
+val st2 = EVAL ``strip_state (Inc 5 NONE)``
+val st3 = EVAL ``strip_state (Dec 199 (SOME 4) NONE)``
+val stf = EVAL ``FOLDL (λe s. e ∧ ((s-1 ∈ {1}) ∨ (s = 0))) T st2``
+
+
+val wfrm_def = Define `
+  wfrm m ⇔ 
+    FINITE m.Q ∧
+    m.q0 ∈ m.Q ∧
+    (∃s. s ∈ m.Q ∧ MEM 0 (strip_state $ m.tf s)) ∧
+    (∀s. s ∈ m.Q ⇒ FOLDL (λe s. e ∧ ((s-1 ∈ m.Q) ∨ (s = 0))) T (strip_state $ m.tf s)) 
+`;
+
+val wfep = EVAL ``wfrm empty``
+
+(* ------------ Simple Machines ------------
+   ---------------------------------- 
+   ----------------------------------
+   ----------------------------------*)
+
 
 val const_def = Define `
     (const 0 = 
@@ -117,24 +146,18 @@ val identity_def = Define `
 
 val test_iden = EVAL ``RUN identity [5]``;
 
-(* Well-formedness *)
-(* TODO *)
-(*
-val wfrm_def = Define `
-  wfrm m ⇔ 
-    FINITE m.Q ∧
-    m.q0 ∈ m.Q ∧
-    (?s. s = m.q0) /\
-    (∀s. s ∈ m.Q ⇒ m.tf s ∈ (m.Q ∨ NONE)) ∧
-    (∃s. s ∈ m.Q ∧ m.tf s = NONE)
+val identity2_def = Define `
+  identity2 = <|
+  Q := {10;11};
+  tf := (λs. case s of 
+                | 10 => Inc 10 (SOME 11)
+                | 11 => Dec 10 NONE NONE
+        );
+  q0 := 10;
+  In := [10];
+  Out := 10;
+  |>
 `;
-*)
-
-(* ------------ examples ------------
-   ---------------------------------- 
-   ----------------------------------
-   ----------------------------------*)
-
 
 val empty_def = Define `
 	empty = <| 
@@ -177,7 +200,8 @@ Definition simp_add_def:
   |>
 End
 
-val s_addition = EVAL ``RUN simp_add [15; 23]``;
+val s_adR = EVAL ``RUN simp_add [15; 23]``;
+val s_adr = EVAL ``run_machine simp_add (init_machine simp_add [15;27])``;
 
 val addition_def = Define `
 	addition = <| 
@@ -196,11 +220,8 @@ val addition_def = Define `
 `;
 
 val addition = EVAL ``addition``;
-
 val addition_0 = EVAL ``init_machine addition [15; 23]``;
-
 val addition_lemma = EVAL `` run_machine addition (init_machine addition [15; 23])``;
-
 val R_addition = EVAL ``RUN addition [15; 23]``;
 
 val multiplication_def = Define `
@@ -240,50 +261,6 @@ val double_def = Define `
 val test_double = EVAL ``RUN double [15]``
 
 
- (* ------------ END examples ------------
-   -------------------------------------- 
-   --------------------------------------
-   -------------------------------------- *)
-
-
-(* Machine and math operation returns the same output *)
-(* TODO *)
-
-val correct2_def = Define `
-	correct2 f m ⇔ ∀a b. RUN m [a;b] = f a b
-`;
-
-Theorem simp_add_correct:
-  correct2 (+) simp_add
-Proof
-  rw[simp_add_def, correct2_def, init_machine_def, run_machine_def, RUN_def] >>
-  qmatch_abbrev_tac `∃rs. (WHILE gd body s0 = (rs, NONE)) ∧ (rs 1 = a + b)` >>
-  `∀rs0. ∃rs. (WHILE gd body s0 = (rs, NONE)) ∧ (rs 1 = rs0 1 + rs0 2)`suffices_by
-  rw[run_machine_def, addition_def] >>
-  metis_tac[] >>
-  cheat
-QED
-
-(*
-TODO 21 June
-1. Finish simp_add_correct proof
-      prove suffices (line 261)
-      prove simp_Add by prove Induct_on `rs0 2`
-2. Prove addition_correct
-3. Maybe finish writing wellformedness?
-*)
-
-Theorem addition_correct:
-	correct2 (+) addition 
-Proof
-  (*rw[correct2_def, init_machine_def, run_machine_1_def] >>
-  rw[run_machine_def, addition_def] >>
-  metis_tac[] >>*)
-  cheat
-QED
-
-
-(* dup0: Could be removed *)
 val dup0_def = Define `
   dup0 r1 r2 r3= <| 
     Q := {1;2;3;4;5};
@@ -302,7 +279,16 @@ val dup0_def = Define `
 
 val test_dup0 = EVAL ``RUN (dup0 14 15 0) [27]``;
 
-(*val test_ms_id = EVAL``msInst 1 identity``;*)
+ (* ------------ END simple machines ------------
+   -------------------------------------- 
+   --------------------------------------
+   -------------------------------------- *)
+
+
+ (* ------------ Combining simple machines ------------
+   -------------------------------------- 
+   --------------------------------------
+   -------------------------------------- *)
 
 val rInst_def = Define `
   (rInst mnum (Inc r sopt) = Inc (npair mnum r) sopt)
@@ -397,18 +383,7 @@ val link_all_def = Define`
   (link_all (m::ms) = FOLDL (λa mm. a ⇨ mm) m ms)
 `;
 
-val identity2_def = Define `
-  identity2 = <|
-  Q := {10;11};
-  tf := (λs. case s of 
-                | 10 => Inc 10 (SOME 11)
-                | 11 => Dec 10 NONE NONE
-        );
-  q0 := 10;
-  In := [10];
-  Out := 10;
-  |>
-`;
+
 
 val test_lka = EVAL``link_all [(mrInst 1 (msInst 1 identity)); (mrInst 2 (msInst 2 identity))]``;
 
@@ -462,5 +437,61 @@ val Cn_def = Define `
 val test_Cn_iden = EVAL ``RUN (Cn identity [identity]) [5]``;
 
 val test_Cn_add = EVAL ``RUN (Cn addition [addition; addition]) [2;2]``;
+
+
+ (* ------------ END Combining simple machines ------------
+   -------------------------------------- 
+   --------------------------------------
+   -------------------------------------- *)
+
+
+(*----------------
+````PROVING`````
+----------------*)
+
+(* Machine and math operation returns the same output *)
+(* TODO *)
+
+val correct2_def = Define `
+  correct2 f m ⇔ ∀a b. RUN m [a;b] = f a b
+`;
+
+Theorem simp_add_correct:
+  correct2 (+) simp_add
+Proof
+  rw[simp_add_def, correct2_def, init_machine_def, run_machine_def, RUN_def] >>
+  (*qmatch_abbrev_tac `∃rs. (WHILE gd body s0 = (rs, NONE)) ∧ (rs 1 = a + b)` >>*)
+  (*`∀rs0. ∃rs. (WHILE gd body s0 = (rs, NONE)) ∧ (rs 1 = rs0 1 + rs0 2)`*)
+  `∀rs0. FST (WHILE gd body init) out = rs0 1 + rs0 2`
+    suffices_by ( simp[] >> 
+                  Induct_on `a` 
+                  >- simp[] 
+                  >- Induct_on `b` 
+                     >- simp[]
+                     >- rw[]
+                     >-  
+                     >- rw[run_machine_1_def, init_machine_def, run_machine_def])
+
+    (Induct_on `rs0 2` >> simp[run_machine_1_def])
+QED
+
+(*
+TODO 21 June
+1. Finish simp_add_correct proof
+      prove suffices (line 261)
+      prove simp_Add by prove Induct_on `rs0 2`
+2. Prove addition_correct
+3. Maybe finish writing wellformedness?
+*)
+
+Theorem addition_correct:
+  correct2 (+) addition 
+Proof
+  (*rw[correct2_def, init_machine_def, run_machine_1_def] >>
+  rw[run_machine_def, addition_def] >>
+  metis_tac[] >>*)
+  cheat
+QED
+
 
 val _ = export_theory ()
