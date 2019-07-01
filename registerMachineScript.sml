@@ -224,9 +224,9 @@ val multiplication_def = Define `
       			| 1 => Dec 0 (SOME 2) NONE
       			| 2 => Dec 1 (SOME 3) (SOME 5)
       			| 3 => Inc 2 (SOME 4) 
-      		    | 4 => Inc 3 (SOME 2)
-      		    | 5 => Dec 3 (SOME 6) (SOME 1)
-      		    | 6 => Inc 1 (SOME 5) 
+      		  | 4 => Inc 3 (SOME 2)
+      		  | 5 => Dec 3 (SOME 6) (SOME 1)
+      		  | 6 => Inc 1 (SOME 5) 
       		 );
       q0 := 1 ;
       In := [0;1] ;
@@ -484,10 +484,8 @@ Proof
             >> rw[] >> Cases_on `rs0 3` >> fs[] >> 
                rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def] >>
                rw[Once whileTheory.WHILE, run_machine_1_def, combinTheory.APPLY_UPDATE_THM])
-      >- (rw[] >> Cases_on `rs0 2` >> fs[] >> rw[Abbr`r`, Abbr`m`, Abbr`gd`] >>
-               rw[Once whileTheory.WHILE, run_machine_1_def, combinTheory.APPLY_UPDATE_THM] >>
-               rw[Once whileTheory.WHILE, run_machine_1_def, combinTheory.APPLY_UPDATE_THM] >>
-               rw[Once whileTheory.WHILE, run_machine_1_def, combinTheory.APPLY_UPDATE_THM])
+      >> rw[] >> Cases_on `rs0 2` >> fs[] >> rw[Abbr`r`, Abbr`m`, Abbr`gd`] >>
+               rw[Ntimes whileTheory.WHILE 3, run_machine_1_def, combinTheory.APPLY_UPDATE_THM] 
 QED
 
 
@@ -500,4 +498,11 @@ TODO  1 July
       ==> correct1 (f o g) (Cn m1 m2)
   even more general -> a list of ms  ...
 *)
+
+Theorem multi_correct:
+  correct2 (*) multiplication
+Proof  
+
+QED
+
 val _ = export_theory ()
