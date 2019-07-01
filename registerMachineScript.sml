@@ -88,6 +88,7 @@ val wfrm_def = Define `
 `;
 
 val wfep = EVAL ``wfrm empty``
+val wfad = EVAL ``wfrm addition``
 
 (* ------------ Simple Machines ------------
    ---------------------------------- 
@@ -460,19 +461,16 @@ Theorem simp_add_correct:
   correct2 (+) simp_add
 Proof
   rw[simp_add_def, correct2_def, init_machine_def, run_machine_def, RUN_def] >>
-  (*qmatch_abbrev_tac `∃rs. (WHILE gd body s0 = (rs, NONE)) ∧ (rs 1 = a + b)` >>*)
-  (*`∀rs0. ∃rs. (WHILE gd body s0 = (rs, NONE)) ∧ (rs 1 = rs0 1 + rs0 2)`*)
-  `∀rs0. FST (WHILE gd body init) out = rs0 1 + rs0 2`
-    suffices_by ( simp[] >> 
-                  Induct_on `a` 
-                  >- simp[] 
-                  >- Induct_on `b` 
-                     >- simp[]
-                     >- rw[]
-                     >-  
-                     >- rw[run_machine_1_def, init_machine_def, run_machine_def])
-
-    (Induct_on `rs0 2` >> simp[run_machine_1_def])
+  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 1 = a + b` >>
+  `∀rs0. FST (WHILE gd (r m) (rs0, SOME 1)) 1 = rs0 1 + rs0 2`
+    suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
+  gen_tac >> 
+  Induct_on `rs0 2`
+    >- (rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def] >>
+        rw[Once whileTheory.WHILE, Abbr`gd`])
+    >> rw[] >> rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def, Abbr`gd`] 
+    >> Cases_on `rs0 2` >> fs[] >> 
+    rw[Once whileTheory.WHILE, run_machine_1_def,combinTheory.APPLY_UPDATE_THM]
 QED
 
 (*
