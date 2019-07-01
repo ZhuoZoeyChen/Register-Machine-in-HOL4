@@ -55,13 +55,6 @@ val RUN_def = Define `
   RUN m i = FST (run_machine m (init_machine m i)) m.Out
 `;
 
-(*Theorem Rr_eq:
-  RUN m i = 
-Proof
-QED
-*)
-
-
 Definition conv:
   (conv (SOME s) = s+1) ∧
   (conv NONE = 0)
@@ -83,7 +76,6 @@ val wfrm_def = Define `
   wfrm m ⇔ 
     FINITE m.Q ∧
     m.q0 ∈ m.Q ∧
-    (∃s. s ∈ m.Q ∧ MEM 0 (strip_state $ m.tf s)) ∧
     (∀s. s ∈ m.Q ⇒ FOLDL (λe s. e ∧ ((s-1 ∈ m.Q) ∨ (s = 0))) T (strip_state $ m.tf s)) 
 `;
 
@@ -470,16 +462,12 @@ Proof
         rw[Once whileTheory.WHILE, Abbr`gd`])
     >> rw[] >> rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def, Abbr`gd`] 
     >> Cases_on `rs0 2` >> fs[] >> 
-    rw[Once whileTheory.WHILE, run_machine_1_def,combinTheory.APPLY_UPDATE_THM]
+    rw[Once whileTheory.WHILE, run_machine_1_def, combinTheory.APPLY_UPDATE_THM]
 QED
 
 (*
-TODO 21 June
-1. Finish simp_add_correct proof
-      prove suffices (line 261)
-      prove simp_Add by prove Induct_on `rs0 2`
+TODO 1 July
 2. Prove addition_correct
-3. Maybe finish writing wellformedness?
 *)
 
 Theorem addition_correct:
