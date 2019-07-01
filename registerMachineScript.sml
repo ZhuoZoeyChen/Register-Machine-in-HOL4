@@ -200,14 +200,14 @@ val addition_def = Define `
 	addition = <| 
       Q := {1;2;3;4;5} ; 
       tf := (λn. case n of 
-      			| 1 => Dec 5 (SOME 2) (SOME 4)
+      			| 1 => Dec 2 (SOME 2) (SOME 4)
       			| 2 => Inc 1 (SOME 3)
-      			| 3 => Inc 2 (SOME 1)
-      			| 4 => Dec 2 (SOME 5) NONE
-      			| 5 => Inc 5 (SOME 4)
+      			| 3 => Inc 3 (SOME 1)
+      			| 4 => Dec 3 (SOME 5) NONE
+      			| 5 => Inc 2 (SOME 4)
       		) ;
       q0 := 1 ;
-      In := [5; 1] ; 
+      In := [1;2] ; 
       Out := 1 ;
 	|>
 `;
@@ -465,19 +465,39 @@ Proof
     rw[Once whileTheory.WHILE, run_machine_1_def, combinTheory.APPLY_UPDATE_THM]
 QED
 
-(*
-TODO 1 July
-2. Prove addition_correct
-*)
 
 Theorem addition_correct:
   correct2 (+) addition 
 Proof
-  (*rw[correct2_def, init_machine_def, run_machine_1_def] >>
-  rw[run_machine_def, addition_def] >>
-  metis_tac[] >>*)
-  cheat
+  rw[addition_def, correct2_def, init_machine_def, run_machine_def, RUN_def] >>
+  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 1 = a + b` >>
+   `∀rs0. FST (WHILE gd (r m) (rs0, SOME 1)) 1 = rs0 1 + rs0 2`
+    suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
+    gen_tac >>
+    Induct_on `rs0 2` 
+      >- (`∀rs0. FST (WHILE gd (r m) (rs0, SOME 4)) 1 = rs0 1` 
+           suffices_by (rw[] >> rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def]) >>
+          gen_tac >>
+          Induct_on `rs0 3`  
+            >- (rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def] >>
+               rw[Once whileTheory.WHILE, Abbr`gd`])
+            >> rw[] >> Cases_on `rs0 3` >> fs[] >> 
+               rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def] >>
+               rw[Once whileTheory.WHILE, run_machine_1_def, combinTheory.APPLY_UPDATE_THM])
+      >- (rw[] >> Cases_on `rs0 2` >> fs[] >> rw[Abbr`r`, Abbr`m`, Abbr`gd`] >>
+               rw[Once whileTheory.WHILE, run_machine_1_def, combinTheory.APPLY_UPDATE_THM] >>
+               rw[Once whileTheory.WHILE, run_machine_1_def, combinTheory.APPLY_UPDATE_THM] >>
+               rw[Once whileTheory.WHILE, run_machine_1_def, combinTheory.APPLY_UPDATE_THM])
 QED
 
 
+(*
+TODO  1 July
+1. Prove multiplication;
+2. Prove dup and link
+3. Prove 
+      correct1 f m1 /\ correct1 g m2 
+      ==> correct1 (f o g) (Cn m1 m2)
+  even more general -> a list of ms  ...
+*)
 val _ = export_theory ()
