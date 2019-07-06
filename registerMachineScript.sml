@@ -279,17 +279,30 @@ val dup0_def = Define `
 val test_dup0 = EVAL ``RUN (dup0 14 15 0) [27]``;
 
 Definition exponential_def:
-  exponential 
-
-   = <|
-    Q := {};
+  exponential  = <|
+    Q := {1;2;3;4;5;6;7;8;9;10;11;12;13};
     tf := (λs. case s of 
-            | 1 => Dec 0 NONE);
+            | 1 => Dec 1 (SOME 2) NONE
+            | 2 => Dec 0 (SOME 3) (SOME 9)
+            | 3 => Inc 5 (SOME 4)
+            | 4 => Dec 2 (SOME 5) (SOME 7)
+            | 5 => Inc 3 (SOME 6)
+            | 6 => Inc 4 (SOME 4)
+            | 7 => Dec 4 (SOME 8) (SOME 2)
+            | 8 => Inc 2 (SOME 7)
+            | 9 => Dec 5 (SOME 10) (SOME 11)
+            | 10 => Inc 0 (SOME 9)
+            | 11 => Dec 2 (SOME 11) (SOME 12)
+            | 12 => Dec 3 (SOME 13) (SOME 1)
+            | 13 => Inc 2 (SOME 12)
+            );
     q0 := 1;
     In := [0;1;2];
     Out := 2;
   |>
 End
+
+val exp_t1 = EVAL``RUN exponential [2;3;1]``
 
 Definition gt2_def:
   gt2 = <||>
