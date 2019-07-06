@@ -51,6 +51,10 @@ val run_machine_def = Define `
 	(run_machine m = WHILE (λ(rs, so). so ≠ NONE) (run_machine_1 m)) 
 `;
 
+val rsf_def = Define ` 
+  rsf m i = FST (run_machine m (init_machine m i))
+`;
+
 val RUN_def = Define `
   RUN m i = FST (run_machine m (init_machine m i)) m.Out
 `;
@@ -415,8 +419,8 @@ val _ = computeLib.set_skip computeLib.the_compset ``COND`` (SOME 1);
 
 val Cn_def = Define `
   Cn m ms = 
-    let isz = LENGTH (HD ms).In;
         mms = MAPi (λi mm. mrInst (i+2) mm) (m::ms);
+    let isz = LENGTH (HD ms).In;
         m' = HD mms;
         ms' = TL mms;
         ics = FLAT (MAP (λmm. MAPi (λi r. dup0 (npair 0 i) r (npair 1 0)) mm.In) ms');
@@ -465,7 +469,6 @@ Proof
     rw[Once whileTheory.WHILE, run_machine_1_def, combinTheory.APPLY_UPDATE_THM]
 QED
 
-
 Theorem addition_correct:
   correct2 (+) addition 
 Proof
@@ -488,7 +491,6 @@ Proof
                rw[Ntimes whileTheory.WHILE 3, run_machine_1_def, combinTheory.APPLY_UPDATE_THM] 
 QED
 
-
 (*
 TODO  1 July
 1. Prove multiplication;
@@ -498,11 +500,132 @@ TODO  1 July
       ==> correct1 (f o g) (Cn m1 m2)
   even more general -> a list of ms  ...
 *)
+     
+Theorem mult_loop2:
+  WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) (rs, SOME 2) 
+  = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) 
+    (rs (| 1 |-> 0; 
+           2 |-> rs 2 + rs 1; 
+           3 |-> rs 3 + rs 1 |) 
+     , SOME 5) 
+Proof
+  Induct_on `rs 1` >> rw[] 
+    >- (rw[Once whileTheory.WHILE, run_machine_1_def, multiplication_def] >>
+          `rs 1 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
+          qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+          `rs1 = rs2` suffices_by simp[] >> 
+          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
+          rw[] >> rw[])
+    >> qmatch_abbrev_tac`_ = goal` >>
+      rw[Ntimes whileTheory.WHILE 3, run_machine_1_def, multiplication_def] >>
+      rw[combinTheory.APPLY_UPDATE_THM] >>
+      `rs 1 = SUC v` by simp[] >> fs[] >> 
+      fs[multiplication_def, combinTheory.APPLY_UPDATE_THM] >> 
+      rw[Abbr`goal`] >> qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+      `rs1 = rs2` suffices_by simp[] >>
+      simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
+QED
+
+Theorem mult_loop3:
+  WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) (rs, SOME 5) 
+  = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) 
+    (rs (| 1 |-> rs 1 + rs 3; 
+           3 |-> 0 |) 
+     , SOME 1) 
+Proof
+  Induct_on `rs 3` >> rw[] 
+    >- (rw[Once whileTheory.WHILE, run_machine_1_def, multiplication_def] >>
+          `rs 3 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
+          qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+          `rs1 = rs2` suffices_by simp[] >> 
+          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
+          rw[] >> rw[])
+    >> rw[SimpLHS, Ntimes whileTheory.WHILE 2, run_machine_1_def, multiplication_def] >>
+      rw[combinTheory.APPLY_UPDATE_THM] >>
+      `rs 3 = SUC v` by simp[] >> fs[] >> 
+      fs[multiplication_def, combinTheory.APPLY_UPDATE_THM] >> 
+      qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+      `rs1 = rs2` suffices_by simp[] >>
+      simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
+QED
+
+Theorem mult_facts[simp]:
+  (multiplication.In = [0; 1]) ∧
+  (multiplication.Out = 2) ∧
+  (multiplication.q0 = 1) ∧
+  (multiplication.Q = {1;2;3;4;5;6}) ∧
+  (multiplication.tf 1 = Dec 0 (SOME 2) NONE )
+Proof
+  simp[multiplication_def]
+QED
 
 Theorem multi_correct:
-  correct2 (*) multiplication
+  correct2 $* multiplication
 Proof  
+  rw[correct2_def, init_machine_def, run_machine_def, RUN_def] >>
+  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 2 = a * b` >>
+  `∀rs0. FST (WHILE gd (r m) (rs0, SOME 1)) 2 = rs0 0 * rs0 1 + rs0 2` 
+  suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
+  gen_tac >> 
+  Induct_on `rs0 0` >> rw[]
+    >- (rw[multiplication_def, Ntimes whileTheory.WHILE 2, Abbr`gd`, Abbr`r`, Abbr`m`, run_machine_1_def] >>
+        `rs0 0 = 0` by simp[] >> fs[])
+    >> rw[Once whileTheory.WHILE, run_machine_1_def, Abbr`gd`, Abbr`r`, Abbr`m`, mult_loop2]
+    >> rw[mult_loop3]
+    >> rw[combinTheory.APPLY_UPDATE_THM] >> `rs0 0 = SUC v` by simp[] >> fs[]
+
+
+      `∀rs0. FST (WHILE gd (r m) (rs0, SOME 2)) 2
+           = (rs0 3 + rs0 1) *  (rs0 0 + 1) + rs0 2 - rs0 3`
+          suffices_by (Induct_on `rs0 1` >> rw[]
+                         >- (rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def] >> 
+                             `rs0 1 = 0` by metis_tac[] >> fs[] >> 
+                              rw[combinTheory.APPLY_UPDATE_THM] >> 
+                              Cases_on `rs0 3`
+                                >- fs[]
+                                >> 
+
+                       rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def] >>
+                       `rs0 0 = SUC v` by metis_tac[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM]
+                       rw[Abbr`gd`]) 
+    
+QED
+
+Theorem dup0_correct:
+  ∀a b c. (rsf dup0 a b c) a = a 
+Proof
 
 QED
+
+Theorem link_correct:
+  ∀m1 m2 i. RUN (link m1 m2) i = run_machine m2 (rsf m1 i, SOME m2.q0)
+Proof
+  
+QED
+
+Definition correct1_def:
+  correct1 f m ⇔ ∀a. RUN m [a] = f a   
+End
+
+Theorem double_correct:
+  correct1 ( *2 ) double
+Proof
+
+QED
+
+Theorem identity_correct:
+  correct1 
+Proof
+
+QED
+
+Theorem Cn1_correct:
+  correct1 f1 m1 ∧ correct1 f2 m2 ⇒ ∀n. RUN (Cn m1 [m2]) [n] = (f1 o f2) n  
+Proof
+  rw[correct1_def, init_machine_def, run_machine_def, RUN_def, rsf_def] >>
+  rw[Cn_def] >>
+
+QED
+
 
 val _ = export_theory ()
