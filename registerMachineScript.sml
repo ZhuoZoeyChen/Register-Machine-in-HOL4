@@ -1,6 +1,8 @@
 open HolKernel Parse boolLib bossLib;
+open arithmeticTheory;
 
 val _ = new_theory "registerMachine";
+
 
 val _ = type_abbrev("reg", “:num”);
 val _ = type_abbrev("state", “:num”);
@@ -546,7 +548,8 @@ Proof
       fs[multiplication_def, combinTheory.APPLY_UPDATE_THM] >> 
       qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
       `rs1 = rs2` suffices_by simp[] >>
-      simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
+      simp[Abbr `rs1`, Abbr`rs2`] >>
+      simp[FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
 QED
 
 Theorem mult_facts[simp]:
@@ -554,42 +557,51 @@ Theorem mult_facts[simp]:
   (multiplication.Out = 2) ∧
   (multiplication.q0 = 1) ∧
   (multiplication.Q = {1;2;3;4;5;6}) ∧
-  (multiplication.tf 1 = Dec 0 (SOME 2) NONE )
+  (multiplication.tf 1 = Dec 0 (SOME 2) NONE)
 Proof
   simp[multiplication_def]
 QED
+        
 
 Theorem multi_correct:
   correct2 $* multiplication
 Proof  
   rw[correct2_def, init_machine_def, run_machine_def, RUN_def] >>
   qmatch_abbrev_tac `FST (WHILE gd (r m) init) 2 = a * b` >>
-  `∀rs0. FST (WHILE gd (r m) (rs0, SOME 1)) 2 = rs0 0 * rs0 1 + rs0 2` 
-  suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
-  gen_tac >> 
+  `∀rs0. (rs0 3 = 0) ⇒ (FST (WHILE gd (r m) (rs0, SOME 1)) 2 = rs0 0 * rs0 1 + rs0 2)` 
+  suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >> rw[] >>
   Induct_on `rs0 0` >> rw[]
     >- (rw[multiplication_def, Ntimes whileTheory.WHILE 2, Abbr`gd`, Abbr`r`, Abbr`m`, run_machine_1_def] >>
         `rs0 0 = 0` by simp[] >> fs[])
     >> rw[Once whileTheory.WHILE, run_machine_1_def, Abbr`gd`, Abbr`r`, Abbr`m`, mult_loop2]
     >> rw[mult_loop3]
     >> rw[combinTheory.APPLY_UPDATE_THM] >> `rs0 0 = SUC v` by simp[] >> fs[]
-
-
-      `∀rs0. FST (WHILE gd (r m) (rs0, SOME 2)) 2
-           = (rs0 3 + rs0 1) *  (rs0 0 + 1) + rs0 2 - rs0 3`
-          suffices_by (Induct_on `rs0 1` >> rw[]
-                         >- (rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def] >> 
-                             `rs0 1 = 0` by metis_tac[] >> fs[] >> 
-                              rw[combinTheory.APPLY_UPDATE_THM] >> 
-                              Cases_on `rs0 3`
-                                >- fs[]
-                                >> 
-
-                       rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def] >>
-                       `rs0 0 = SUC v` by metis_tac[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM]
-                       rw[Abbr`gd`]) 
-    
+    >> fs[arithmeticTheory.ADD1]
 QED
+
+
+Theorem 'multi_correct:
+  correct2 $* multiplication
+Proof  
+  rw[correct2_def, init_machine_def, run_machine_def, RUN_def] >>
+  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 2 = a * b` >>
+  `∀rs0. WHILE gd (r m) (rs0, SOME 1) = 
+    (rs0 (| 0 |-> 0;
+            2 |-> rs0 0 * rs0 1 + rs0 2;
+            3 |-> 0 |)
+    , NONE)` 
+  suffices_by rw[Abbr`init`, indexedListsTheory.findi_def, combinTheory.APPLY_UPDATE_THM] >>
+  gen_tac >>  Cases_on`rs0 3` 
+          >- (simp[combinTheory.APPLY_UPDATE_ID, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >> 
+            rw[combinTheory.APPLY_UPDATE_THM] >> simp[])
+          >> 
+  Induct_on `rs0 0` >> rw[]
+    >- (
+    >> rw[Once whileTheory.WHILE, run_machine_1_def, Abbr`gd`, Abbr`r`, Abbr`m`, mult_loop2]
+    >> rw[mult_loop3]
+    >> rw[combinTheory.APPLY_UPDATE_THM] >> `rs0 0 = SUC v` by simp[] >> fs[] 
+QED
+
 
 Theorem dup0_correct:
   ∀a b c. (rsf dup0 a b c) a = a 
