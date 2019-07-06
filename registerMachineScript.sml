@@ -30,10 +30,10 @@ val _ = Datatype‘
 
 (* Initialise *)
 val init_machine_def = Define `
-	init_machine m i = 
-		((λn. if findi n m.In = LENGTH m.In then 0
+  init_machine m i = 
+    ((λn. if findi n m.In = LENGTH m.In then 0
             else EL (findi n m.In) i)
-		,
+    ,
         SOME m.q0)
 `;
 
@@ -42,15 +42,15 @@ val init_machine_def = Define `
 val run_machine_1_def = Define `
     (run_machine_1 m (rs, NONE) = (rs, NONE)) 
     ∧
-	(run_machine_1 m (rs, SOME s) = if s ∉ m.Q then (rs, NONE) 
+  (run_machine_1 m (rs, SOME s) = if s ∉ m.Q then (rs, NONE) 
     else case m.tf s of
-		| Inc r so => ( rs (| r |-> rs r + 1 |), so )
-		| Dec r so1 so2 => if rs r > 0 then ( rs (| r |-> rs r - 1 |) , so1)
-		                      else ( rs, so2))
+    | Inc r so => ( rs (| r |-> rs r + 1 |), so )
+    | Dec r so1 so2 => if rs r > 0 then ( rs (| r |-> rs r - 1 |) , so1)
+                          else ( rs, so2))
 `;
 
 val run_machine_def = Define `
-	(run_machine m = WHILE (λ(rs, so). so ≠ NONE) (run_machine_1 m)) 
+  (run_machine m = WHILE (λ(rs, so). so ≠ NONE) (run_machine_1 m)) 
 `;
 
 val rsf_def = Define ` 
@@ -159,28 +159,28 @@ val identity2_def = Define `
 `;
 
 val empty_def = Define `
-	empty = <| 
+  empty = <| 
       Q := {1} ; 
       tf := (λn. Dec 0 (SOME 1) NONE) ;
       q0 := 1 ;
       In := [0] ;
       Out := 0 ;
-	|>
+  |>
 `;
 
 val empty_lemma = EVAL `` run_machine empty (init_machine empty [3])``
 
 val transfer_def = Define `
-	transfer = <| 
+  transfer = <| 
       Q := {1;2} ; 
       tf := (λn. case n of 
-      			| 1 => Dec 0 (SOME 2) NONE 
-      			| 2 => Inc 1 (SOME 1)
-      		) ;
+            | 1 => Dec 0 (SOME 2) NONE 
+            | 2 => Inc 1 (SOME 1)
+          ) ;
       q0 := 1 ;
       In := [0] ;
       Out := 1 ;
-	|>
+  |>
 `;
 
 val transfer_lemma = EVAL `` run_machine transfer (init_machine transfer [10])``
@@ -203,19 +203,19 @@ val s_adR = EVAL ``RUN simp_add [15; 23]``;
 val s_adr = EVAL ``run_machine simp_add (init_machine simp_add [15;27])``;
 
 val addition_def = Define `
-	addition = <| 
+  addition = <| 
       Q := {1;2;3;4;5} ; 
       tf := (λn. case n of 
-      			| 1 => Dec 2 (SOME 2) (SOME 4)
-      			| 2 => Inc 1 (SOME 3)
-      			| 3 => Inc 3 (SOME 1)
-      			| 4 => Dec 3 (SOME 5) NONE
-      			| 5 => Inc 2 (SOME 4)
-      		) ;
+            | 1 => Dec 2 (SOME 2) (SOME 4)
+            | 2 => Inc 1 (SOME 3)
+            | 3 => Inc 3 (SOME 1)
+            | 4 => Dec 3 (SOME 5) NONE
+            | 5 => Inc 2 (SOME 4)
+          ) ;
       q0 := 1 ;
       In := [1;2] ; 
       Out := 1 ;
-	|>
+  |>
 `;
 
 val addition = EVAL ``addition``;
@@ -224,20 +224,20 @@ val addition_lemma = EVAL `` run_machine addition (init_machine addition [15; 23
 val R_addition = EVAL ``RUN addition [15; 23]``;
 
 val multiplication_def = Define `
-	 multiplication = <| 
+   multiplication = <| 
       Q := {1;2;3;4;5;6} ; 
       tf := (λn. case n of 
-      			| 1 => Dec 0 (SOME 2) NONE
-      			| 2 => Dec 1 (SOME 3) (SOME 5)
-      			| 3 => Inc 2 (SOME 4) 
-      		  | 4 => Inc 3 (SOME 2)
-      		  | 5 => Dec 3 (SOME 6) (SOME 1)
-      		  | 6 => Inc 1 (SOME 5) 
-      		 );
+            | 1 => Dec 0 (SOME 2) NONE
+            | 2 => Dec 1 (SOME 3) (SOME 5)
+            | 3 => Inc 2 (SOME 4) 
+            | 4 => Inc 3 (SOME 2)
+            | 5 => Dec 3 (SOME 6) (SOME 1)
+            | 6 => Inc 1 (SOME 5) 
+           );
       q0 := 1 ;
       In := [0;1] ;
       Out := 2 ;
-	|>
+  |>
 `;
 
 val multiplication_lemma = EVAL `` run_machine multiplication (init_machine multiplication [3; 4])``
@@ -279,12 +279,50 @@ val dup0_def = Define `
 val test_dup0 = EVAL ``RUN (dup0 14 15 0) [27]``;
 
 Definition exponential_def:
-  
+  exponential 
+
+   = <|
+    Q := {};
+    tf := (λs. case s of 
+            | 1 => Dec 0 NONE);
+    q0 := 1;
+    In := [0;1;2];
+    Out := 2;
+  |>
+End
+
+Definition gt2_def:
+  gt2 = <||>
 End
 
 Definition factorial_def:
-
+  factorial = <|
+    Q := {1;2;3;4;5;6;7;8;9;10;11;12;13;14;15};
+    tf := (λn. case n of 
+            | 1 => Dec 0 (SOME 13) (SOME 7)
+            | 2 => Dec 1 (SOME 3) (SOME 5)
+            | 3 => Inc 2 (SOME 4) 
+            | 4 => Inc 3 (SOME 2)
+            | 5 => Dec 3 (SOME 6) (SOME 1)
+            | 6 => Inc 1 (SOME 5) 
+            | 7 => Dec 1 (SOME 7) (SOME 8)
+            | 8 => Dec 2 (SOME 9) (SOME 14)
+            | 9 => Inc 1 (SOME 8)
+            | 10 => Dec 0 (SOME 11) NONE
+            | 11 => Dec 0 (SOME 12) NONE
+            | 12 => Inc 0 (SOME 1)
+            | 13 => Inc 4 (SOME 2)
+            | 14 => Dec 4 (SOME 15) (SOME 10)
+            | 15 => Inc 0 (SOME 14)
+           );
+      q0 := 1 ;
+      In := [0;1] ;
+      Out := 1 ;
+      |>
 End
+
+val fac_t1 = EVAL ``RUN factorial [5;1]``;
+
 
  (* ------------ END simple machines ------------
    -------------------------------------- 
