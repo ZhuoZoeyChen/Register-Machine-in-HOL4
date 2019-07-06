@@ -278,6 +278,14 @@ val dup0_def = Define `
 
 val test_dup0 = EVAL ``RUN (dup0 14 15 0) [27]``;
 
+Definition exponential_def:
+  
+End
+
+Definition factorial_def:
+
+End
+
  (* ------------ END simple machines ------------
    -------------------------------------- 
    --------------------------------------
@@ -449,7 +457,6 @@ val test_Cn_add = EVAL ``RUN (Cn addition [addition; addition]) [2;2]``;
 ----------------*)
 
 (* Machine and math operation returns the same output *)
-(* TODO *)
 
 val correct2_def = Define `
   correct2 f m ⇔ ∀a b. RUN m [a;b] = f a b
@@ -602,6 +609,11 @@ Proof
     >> rw[combinTheory.APPLY_UPDATE_THM] >> `rs0 0 = SUC v` by simp[] >> fs[] 
 QED
 
+Theorem exp_correct:
+
+Proof
+
+QED
 
 Theorem dup0_correct:
   ∀a b c. (rsf dup0 a b c) a = a 
