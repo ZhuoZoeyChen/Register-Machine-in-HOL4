@@ -829,6 +829,78 @@ Proof
       simp[FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
 QED
 
+Theorem exp_loop1_3:
+  WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) (rs, SOME 9) 
+  = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) 
+    (rs (| 1 |-> rs 1 + rs 5; 
+           5 |-> 0 |) 
+     , SOME 11) 
+Proof
+  Induct_on `rs 5` >> rw[] 
+    >- (rw[Once whileTheory.WHILE, run_machine_1_def, exponential_def] >>
+          `rs 5 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
+          qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+          `rs1 = rs2` suffices_by simp[] >> 
+          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
+          rw[] >> rw[])
+    >> rw[SimpLHS, Ntimes whileTheory.WHILE 2, run_machine_1_def, exponential_def] >>
+      rw[combinTheory.APPLY_UPDATE_THM] >>
+      `rs 5 = SUC v` by simp[] >> fs[] >> 
+      fs[exponential_def, combinTheory.APPLY_UPDATE_THM] >> 
+      qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+      `rs1 = rs2` suffices_by simp[] >>
+      simp[Abbr `rs1`, Abbr`rs2`] >>
+      simp[FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
+QED
+
+Theorem exp_loop1_4:
+  WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) (rs, SOME 11) 
+  = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) 
+    (rs (| 2 |-> 0 |) 
+     , SOME 12) 
+Proof
+  Induct_on `rs 2` >> rw[] 
+    >- (rw[Once whileTheory.WHILE, run_machine_1_def, exponential_def] >>
+          `rs 2 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
+          qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+          `rs1 = rs2` suffices_by simp[] >> 
+          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
+          rw[] >> rw[])
+    >> rw[SimpLHS, Once whileTheory.WHILE, run_machine_1_def, exponential_def] >>
+      rw[combinTheory.APPLY_UPDATE_THM] >>
+      `rs 2 = SUC v` by simp[] >> fs[] >> 
+      fs[exponential_def, combinTheory.APPLY_UPDATE_THM] >> 
+      qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+      `rs1 = rs2` suffices_by simp[] >>
+      simp[Abbr `rs1`, Abbr`rs2`] >>
+      simp[FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
+QED
+
+Theorem exp_loop1_5:
+  WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) (rs, SOME 12) 
+  = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) 
+    (rs (| 2 |-> rs 2 + rs 3; 
+           3 |-> 0 |) 
+     , SOME 1) 
+Proof
+  Induct_on `rs 3` >> rw[] 
+    >- (rw[Once whileTheory.WHILE, run_machine_1_def, exponential_def] >>
+          `rs 3 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
+          qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+          `rs1 = rs2` suffices_by simp[] >> 
+          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
+          rw[] >> rw[])
+    >> rw[SimpLHS, Ntimes whileTheory.WHILE 2, run_machine_1_def, exponential_def] >>
+      rw[combinTheory.APPLY_UPDATE_THM] >>
+      `rs 3 = SUC v` by simp[] >> fs[] >> 
+      fs[exponential_def, combinTheory.APPLY_UPDATE_THM] >> 
+      qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+      `rs1 = rs2` suffices_by simp[] >>
+      simp[Abbr `rs1`, Abbr`rs2`] >>
+      simp[FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
+QED
+
+
 Theorem exp_loop1:
     WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) (rs, SOME 2) 
   = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) 
@@ -848,7 +920,7 @@ Proof
     >> rw[Ntimes whileTheory.WHILE 2, run_machine_1_def, exponential_def]
     >> rw[combinTheory.APPLY_UPDATE_THM]
     >> rw[?.exponential_def, exp_loop1_1]
-    >> rw[exp_loop1_2]
+    >> rw[exp_loop1_2, exp_loop1_3, exp_loop1_4, exp_loop1_5]
     >> rw[]
 QED
 
@@ -935,7 +1007,7 @@ QED
 Theorem rename1_correct:
   correct1 f m ⇒ correct1 
 Proof
-  
+
 QED
 
 Theorem rename2_correct:
