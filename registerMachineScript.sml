@@ -10,6 +10,13 @@ val _ = type_abbrev("state", “:num”);
 val _ = Datatype ` action = Inc num (state option) | Dec num (state option) (state option) `
 
 
+(* 
+   ---------------------------------- 
+   ----- Register Machine Model -----
+   ----------------------------------
+   *)
+
+
 (*
     Q : state set (each one represented with a number); 
     tf : state -> action (returns the action inside the state);
@@ -88,11 +95,12 @@ val wfrm_def = Define `
 val wfep = EVAL ``wfrm empty``
 val wfad = EVAL ``wfrm addition``
 
-(* ------------ Simple Machines ------------
-   ---------------------------------- 
-   ----------------------------------
-   ----------------------------------*)
 
+(* 
+   ---------------------------------- 
+   -------- Simple Machines ---------
+   ----------------------------------
+   *)
 
 val const_def = Define `
     (const 0 = 
@@ -143,7 +151,7 @@ val identity_def = Define `
   |>
 `;
 
-val test_iden = EVAL ``RUN identity [5]``;
+val test_iden = EVAL ``RUN identity [5; 6]``;
 
 val identity2_def = Define `
   identity2 = <|
@@ -282,8 +290,8 @@ Definition exponential_def:
   exponential  = <|
     Q := {1;2;3;4;5;6;7;8;9;10;11;12;13};
     tf := (λs. case s of 
-            | 1 => Dec 1 (SOME 2) NONE
-            | 2 => Dec 0 (SOME 3) (SOME 9)
+            | 1 => Dec 0 (SOME 2) NONE
+            | 2 => Dec 1 (SOME 3) (SOME 9)
             | 3 => Inc 5 (SOME 4)
             | 4 => Dec 2 (SOME 5) (SOME 7)
             | 5 => Inc 3 (SOME 6)
@@ -291,22 +299,24 @@ Definition exponential_def:
             | 7 => Dec 4 (SOME 8) (SOME 2)
             | 8 => Inc 2 (SOME 7)
             | 9 => Dec 5 (SOME 10) (SOME 11)
-            | 10 => Inc 0 (SOME 9)
+            | 10 => Inc 1 (SOME 9)
             | 11 => Dec 2 (SOME 11) (SOME 12)
             | 12 => Dec 3 (SOME 13) (SOME 1)
             | 13 => Inc 2 (SOME 12)
             );
     q0 := 1;
-    In := [0;1;2];
+    In := [1;0;2];
     Out := 2;
   |>
 End
 
 val exp_t1 = EVAL``RUN exponential [2;3;1]``
 
+(*
 Definition gt2_def:
   gt2 = <||>
 End
+*)
 
 Definition factorial_def:
   factorial = <|
@@ -337,16 +347,30 @@ End
 val fac_t1 = EVAL ``RUN factorial [5;1]``;
 
 
- (* ------------ END simple machines ------------
-   -------------------------------------- 
-   --------------------------------------
-   -------------------------------------- *)
+(* 
+   ---------------------------------- 
+   ------      Projection      ------
+   ----------------------------------
+   *)
 
-
- (* ------------ Combining simple machines ------------
+(* Returns the n-th element of the list ns, indexing from 0 *)
+Definition Pi_def:
+  Pi n ns = <|
+      Q := {0;1};
+      tf := (λs. case s of 
+                | 0 => Inc 0 (SOME 1)
+                | 1 => Dec 0 NONE NONE
+        );
+      q0 := 1;
+      In := GENLIST I ns;
+      Out := n;
+    |>
+End
+ (* 
    -------------------------------------- 
-   --------------------------------------
-   -------------------------------------- *)
+   ------------ Composition  ------------
+   -------------------------------------- 
+   *)
 
 val rInst_def = Define `
   (rInst mnum (Inc r sopt) = Inc (npair mnum r) sopt)
@@ -480,9 +504,9 @@ val _ = computeLib.set_skip computeLib.the_compset ``COND`` (SOME 1);
 
 val Cn_def = Define `
   Cn m ms = 
-        mms = MAPi (λi mm. mrInst (i+2) mm) (m::ms);
     let isz = LENGTH (HD ms).In;
-        m' = HD mms;
+        mms = MAPi (λi mm. mrInst (i+2) mm) (m::ms);
+        m'  = HD mms;
         ms' = TL mms;
         ics = FLAT (MAP (λmm. MAPi (λi r. dup0 (npair 0 i) r (npair 1 0)) mm.In) ms');
         ocs = MAPi (λi mm. dup0 mm.Out (EL i m'.In) (npair 1 0)) ms';
@@ -496,16 +520,111 @@ val test_Cn_iden = EVAL ``RUN (Cn identity [identity]) [5]``;
 
 val test_Cn_add = EVAL ``RUN (Cn addition [addition; addition]) [2;2]``;
 
+(*
+val Cnd_def = Define `
+  Cnd m ms =  
+    let mms = MAPi (λi mm. mrInst (i+2) mm) (m::ms);
+        m' = HD mms;
+        ms' = TL mms;
+        ics = FLAT (MAP (λmm. MAPi (λi r. dup0 (npair 0 i) r (npair 1 0)) mm.In) ms');
+        ocs = MAPi (λi mm. dup0 mm.Out (EL i m'.In) (npair 1 0)) ms';
+        mix = ics++ms'++ocs++[m'];
+        mix' = MAPi msInst mix;
+    in 
+      link_all mix' with In := MAP (λm. MAP (npair 0) m.In) ms
+`;
+*)
 
- (* ------------ END Combining simple machines ------------
-   -------------------------------------- 
-   --------------------------------------
-   -------------------------------------- *)
+(* 
+   ---------------------------------- 
+   ------ Primitive Recursion  ------
+   ----------------------------------
+*)
 
 
-(*----------------
-````PROVING`````
-----------------*)
+
+
+val end_plink_def = Define `
+  (end_plink (Inc q d0) d = Inc q (upd d0 d))
+    ∧
+  (end_plink (Dec q d1 d2) d = Dec q (upd d1 d) d2)
+`;
+
+
+val plinktf_def = Define`
+  linktf m1Q tf1 tf2 m2init s = 
+     if s ∈ m1Q then end_plink (tf1 s) m2init
+     else tf2 s
+`;
+
+(* Partial link - only links state option 1 of m1 to m2 *)
+Definition plink:
+  plink m1 m2 = <|
+    Q := m1.Q ∪ m2.Q;
+    tf := plinktf m1.Q m1.tf m2.tf m2.q0;
+    q0 := m1.q0;
+    In := m1.In;
+    Out := m2.Out;
+  |>
+End
+
+(* Recursive call function, k stands for k-th iteration *)
+Definition Rc_def:
+  Rc gd step k = 
+      gd' = rename gd k
+      step' = rename step k 
+      copy = copy gd' output to step' input 
+      mix = plink gd' copy step'
+
+End
+
+(* Pr.In is in the form of ``accumulator :: counter :: limit :: inputs``.
+   base: machine which computes the base case of the premitive recursion.
+   gd  : machine which requires input indicating the input register number. 
+   step: the recursive step
+   *)
+Definition Pr_def:
+  Pr base gd step = 
+      let base' = mrInst 0 base;
+          limit = EL 2 step.In;
+
+          mix' = base' ++ (gd limit)
+    in 
+
+
+End
+
+val Cn_def = Define `
+  Cn m ms = 
+    let isz = LENGTH (HD ms).In;
+        mms = MAPi (λi mm. mrInst (i+2) mm) (m::ms);
+        m'  = HD mms;
+        ms' = TL mms;
+        ics = FLAT (MAP (λmm. MAPi (λi r. dup0 (npair 0 i) r (npair 1 0)) mm.In) ms');
+        ocs = MAPi (λi mm. dup0 mm.Out (EL i m'.In) (npair 1 0)) ms';
+        mix = ics++ms'++ocs++[m'];
+        mix' = MAPi msInst mix;
+    in 
+      link_all mix' with In := MAP (npair 0) (GENLIST I isz)
+`;
+
+
+(* 
+   ---------------------------------- 
+   ------         Mu           ------
+   ----------------------------------
+*)
+
+Definition Mu_def:
+
+End
+
+(* 
+   ---------------------------------- 
+   --------     Proving     ---------
+   ----------------------------------
+   *)
+
 
 (* Machine and math operation returns the same output *)
 
@@ -561,7 +680,7 @@ TODO  1 July
   even more general -> a list of ms  ...
 *)
      
-Theorem mult_loop2:
+Theorem mult_loop1:
   WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) (rs, SOME 2) 
   = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) 
     (rs (| 1 |-> 0; 
@@ -586,7 +705,7 @@ Proof
       simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
 QED
 
-Theorem mult_loop3:
+Theorem mult_loop2:
   WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) (rs, SOME 5) 
   = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) 
     (rs (| 1 |-> rs 1 + rs 3; 
@@ -627,17 +746,17 @@ Proof
   rw[correct2_def, init_machine_def, run_machine_def, RUN_def] >>
   qmatch_abbrev_tac `FST (WHILE gd (r m) init) 2 = a * b` >>
   `∀rs0. (rs0 3 = 0) ⇒ (FST (WHILE gd (r m) (rs0, SOME 1)) 2 = rs0 0 * rs0 1 + rs0 2)` 
-  suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >> rw[] >>
+    suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >> rw[] >>
   Induct_on `rs0 0` >> rw[]
     >- (rw[multiplication_def, Ntimes whileTheory.WHILE 2, Abbr`gd`, Abbr`r`, Abbr`m`, run_machine_1_def] >>
         `rs0 0 = 0` by simp[] >> fs[])
-    >> rw[Once whileTheory.WHILE, run_machine_1_def, Abbr`gd`, Abbr`r`, Abbr`m`, mult_loop2]
-    >> rw[mult_loop3]
+    >> rw[Once whileTheory.WHILE, run_machine_1_def, Abbr`gd`, Abbr`r`, Abbr`m`, mult_loop1]
+    >> rw[mult_loop2]
     >> rw[combinTheory.APPLY_UPDATE_THM] >> `rs0 0 = SUC v` by simp[] >> fs[]
     >> fs[arithmeticTheory.ADD1]
 QED
 
-
+(*
 Theorem 'multi_correct:
   correct2 $* multiplication
 Proof  
@@ -659,12 +778,131 @@ Proof
     >> rw[mult_loop3]
     >> rw[combinTheory.APPLY_UPDATE_THM] >> `rs0 0 = SUC v` by simp[] >> fs[] 
 QED
+*)
+
+Theorem exp_loop1_1:
+  WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) (rs, SOME 4) 
+  = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) 
+    (rs (| 2 |-> 0; 
+           3 |-> rs 3 + rs 2;
+           4 |-> rs 4 + rs 2 |) 
+     , SOME 7) 
+Proof
+  Induct_on `rs 2` >> rw[] 
+    >- (rw[Once whileTheory.WHILE, run_machine_1_def, exponential_def] >>
+          `rs 2 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
+          qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+          `rs1 = rs2` suffices_by simp[] >> 
+          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
+          rw[] >> rw[])
+    >> qmatch_abbrev_tac`_ = goal` >>
+      rw[Ntimes whileTheory.WHILE 3, run_machine_1_def, exponential_def] >>
+      rw[combinTheory.APPLY_UPDATE_THM] >>
+      `rs 2 = SUC v` by simp[] >> fs[] >> 
+      fs[exponential_def, combinTheory.APPLY_UPDATE_THM] >> 
+      rw[Abbr`goal`] >> qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+      `rs1 = rs2` suffices_by simp[] >>
+      simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
+QED
+
+Theorem exp_loop1_2:
+  WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) (rs, SOME 7) 
+  = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) 
+    (rs (| 2 |-> rs 2 + rs 4; 
+           4 |-> 0 |) 
+     , SOME 2) 
+Proof
+  Induct_on `rs 4` >> rw[] 
+    >- (rw[Once whileTheory.WHILE, run_machine_1_def, exponential_def] >>
+          `rs 4 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
+          qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+          `rs1 = rs2` suffices_by simp[] >> 
+          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
+          rw[] >> rw[])
+    >> rw[SimpLHS, Ntimes whileTheory.WHILE 2, run_machine_1_def, exponential_def] >>
+      rw[combinTheory.APPLY_UPDATE_THM] >>
+      `rs 4 = SUC v` by simp[] >> fs[] >> 
+      fs[exponential_def, combinTheory.APPLY_UPDATE_THM] >> 
+      qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+      `rs1 = rs2` suffices_by simp[] >>
+      simp[Abbr `rs1`, Abbr`rs2`] >>
+      simp[FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
+QED
+
+Theorem exp_loop1:
+    WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) (rs, SOME 2) 
+  = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) 
+    (rs (| 1 |-> 0; 
+           3 |-> rs 3 + rs 1 * rs 2;
+           5 |-> rs 5 + rs 1 |) 
+     , SOME 9) 
+Proof
+  Induct_on `rs 1` >> rw[] 
+    >- (rw[Once whileTheory.WHILE, run_machine_1_def, exponential_def] >>
+          `rs 1 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
+          qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+          `rs1 = rs2` suffices_by simp[] >> 
+          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
+          rw[] >> rw[]) 
+    >> qmatch_abbrev_tac`_ = goal`
+    >> rw[Ntimes whileTheory.WHILE 2, run_machine_1_def, exponential_def]
+    >> rw[combinTheory.APPLY_UPDATE_THM]
+    >> rw[?.exponential_def, exp_loop1_1]
+    >> rw[exp_loop1_2]
+    >> rw[]
+QED
+
+
+Theorem multi_correct:
+  correct2 $* multiplication
+Proof  
+  rw[correct2_def, init_machine_def, run_machine_def, RUN_def] >>
+  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 2 = a * b` >>
+  `∀rs0. (rs0 3 = 0) ⇒ (FST (WHILE gd (r m) (rs0, SOME 1)) 2 = rs0 0 * rs0 1 + rs0 2)` 
+    suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >> rw[] >>
+  Induct_on `rs0 0` >> rw[]
+    >- (rw[multiplication_def, Ntimes whileTheory.WHILE 2, Abbr`gd`, Abbr`r`, Abbr`m`, run_machine_1_def] >>
+        `rs0 0 = 0` by simp[] >> fs[])
+    >> rw[Once whileTheory.WHILE, run_machine_1_def, Abbr`gd`, Abbr`r`, Abbr`m`, mult_loop1]
+    >> rw[mult_loop2]
+    >> rw[combinTheory.APPLY_UPDATE_THM] >> `rs0 0 = SUC v` by simp[] >> fs[]
+    >> fs[arithmeticTheory.ADD1]
+QED
+
+Theorem exp_facts[simp]:
+  (exponential.In = [1; 0; 2]) ∧
+  (exponential.Out = 2) ∧
+  (exponential.q0 = 1) ∧
+  (exponential.Q = {1;2;3;4;5;6;7;8;9;10;11;12;13}) ∧
+  (exponential.tf 1 = Dec 0 (SOME 2) NONE)
+Proof
+  simp[exponential_def]
+QED
 
 Theorem exp_correct:
+  ∀a b. RUN exponential [a;b;1] = a ** b 
+Proof
+  rw[init_machine_def, run_machine_def, RUN_def] >>
+  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 2 = a ** b` >>
+  `∀rs0. ((rs0 4 = 0) ∧ (rs0 3 = 0) ∧ (rs0 5 = 0)) ⇒
+     (FST (WHILE gd (r m) (rs0, SOME 1)) 2 = (rs0 1 ** rs0 0) * rs0 2)`
+     suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >> rw[] >>
+  Induct_on `rs0 0` >> rw[] 
+    >- (rw[exponential_def, Ntimes whileTheory.WHILE 2, Abbr`gd`, Abbr`r`, Abbr`m`, run_machine_1_def] >>
+        `rs0 0 = 0` by simp[] >> fs[])
+    >> rw[Once whileTheory.WHILE, run_machine_1_def, Abbr`gd`, Abbr`r`, Abbr`m`, exp_loop1]
+    >> rw[exp_loop2]
+    >> rw[exp_loop3]
+    >> rw[exp_loop4]
+QED
+
+
+Theorem fac_correct:
 
 Proof
 
 QED
+
 
 Theorem dup0_correct:
   ∀a b c. (rsf dup0 a b c) a = a 
@@ -692,6 +930,16 @@ Theorem identity_correct:
   correct1 
 Proof
 
+QED
+
+Theorem rename1_correct:
+  correct1 f m ⇒ correct1 
+Proof
+  
+QED
+
+Theorem rename2_correct:
+Proof
 QED
 
 Theorem Cn1_correct:
