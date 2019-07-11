@@ -1,5 +1,7 @@
 open HolKernel Parse boolLib bossLib;
 open arithmeticTheory;
+open combinTheory;
+open whileTheory;
 
 val _ = new_theory "registerMachine";
 
@@ -24,7 +26,6 @@ val _ = Datatype ` action = Inc num (state option) | Dec num (state option) (sta
     I : reg list (input regs);
     O : reg (output register);
 *)
-
 val _ = Datatype‘
   rm = <|
     Q : state set; 
@@ -84,7 +85,10 @@ val st2 = EVAL ``strip_state (Inc 5 NONE)``
 val st3 = EVAL ``strip_state (Dec 199 (SOME 4) NONE)``
 val stf = EVAL ``FOLDL (λe s. e ∧ ((s-1 ∈ {1}) ∨ (s = 0))) T st2``
 
-
+(* Definition of wellformedness of a register machine :
+      Has finite states initial state(q0) is in that machine's set of all states(Q),
+      and a valid state only transits to a valid state or NONE.
+*)
 val wfrm_def = Define `
   wfrm m ⇔ 
     FINITE m.Q ∧
@@ -102,6 +106,7 @@ val wfad = EVAL ``wfrm addition``
    ----------------------------------
    *)
 
+(* Returns the given constant by putting it in register 0 *)
 val const_def = Define `
     (const 0 = 
     <|
@@ -535,13 +540,14 @@ val Cnd_def = Define `
 `;
 *)
 
+
+
+
 (* 
    ---------------------------------- 
    ------ Primitive Recursion  ------
    ----------------------------------
 *)
-
-
 
 
 val end_plink_def = Define `
@@ -608,7 +614,6 @@ val Cn_def = Define `
       link_all mix' with In := MAP (npair 0) (GENLIST I isz)
 `;
 
-
 (* 
    ---------------------------------- 
    ------         Mu           ------
@@ -643,9 +648,8 @@ Proof
   Induct_on `rs0 2`
     >- (rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def] >>
         rw[Once whileTheory.WHILE, Abbr`gd`])
-    >> rw[] >> rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def, Abbr`gd`] 
-    >> Cases_on `rs0 2` >> fs[] >> 
-    rw[Once whileTheory.WHILE, run_machine_1_def, combinTheory.APPLY_UPDATE_THM]
+    >> rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def, Abbr`gd`] 
+    >> rw[Once whileTheory.WHILE, run_machine_1_def, combinTheory.APPLY_UPDATE_THM]
 QED
 
 Theorem addition_correct:
@@ -670,15 +674,6 @@ Proof
                rw[Ntimes whileTheory.WHILE 3, run_machine_1_def, combinTheory.APPLY_UPDATE_THM] 
 QED
 
-(*
-TODO  1 July
-1. Prove multiplication;
-2. Prove dup and link
-3. Prove 
-      correct1 f m1 /\ correct1 g m2 
-      ==> correct1 (f o g) (Cn m1 m2)
-  even more general -> a list of ms  ...
-*)
      
 Theorem mult_loop1:
   WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) (rs, SOME 2) 
@@ -970,32 +965,24 @@ Proof
   qmatch_abbrev_tac `FST (WHILE gd (r m) init) 2 = a ** b` >>
   `∀rs0. ((rs0 4 = 0) ∧ (rs0 3 = 0) ∧ (rs0 5 = 0)) ⇒
      (FST (WHILE gd (r m) (rs0, SOME 1)) 2 = (rs0 1 ** rs0 0) * rs0 2)`
-     suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >> rw[]
-  Induct_on `rs0 0` >> 
+     suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >> rw[] >> 
+  Induct_on `rs0 0` 
     >- (rw[exponential_def, Ntimes whileTheory.WHILE 2, Abbr`gd`, Abbr`r`, Abbr`m`, run_machine_1_def] >>
         `rs0 0 = 0` by simp[] >> fs[])
     >> rw[]
     >> rw[Once whileTheory.WHILE, run_machine_1_def, Abbr`gd`, Abbr`r`, Abbr`m`]
-    >> Induct_on `rs0 1` >> rw[] 
-    >- (rw[Once whileTheory.WHILE, run_machine_1_def, exponential_def] >>
-          `rs0 1 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
-          qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
-          `rs1 = rs2` suffices_by simp[] >> 
-          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
-          rw[] >> rw[]) 
-    >> rw[SimpLHS, Ntimes whileTheory.WHILE 2, run_machine_1_def]
-    >> rw[exp_loop1_1, combinTheory.APPLY_UPDATE_THM]
-    >> rw[exp_loop1_2, combinTheory.APPLY_UPDATE_THM]
-    >> `rs 1 = SUC v` by simp[] >> fs[]
-    >> fs[exponential_def, combinTheory.APPLY_UPDATE_THM] 
-    >> qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` 
-    >> `rs1 = rs2` suffices_by simp[] >> simp[Abbr `rs1`, Abbr`rs2`]
-    >> fs[arithmeticTheory.ADD1] 
-    >> `(rs 2 + v * rs 2) = rs 2 * (v + 1)` by simp[]
-    >> simp[FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] 
-    >> rw[]
-    >> `0 = rs 4` by simp[]
-    >> rw[exp_loop1]
+    >> qmatch_abbrev_tac `_ (_ _ _ (rs, SOME2)) _ = _` 
+    >> `FST (WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential)
+             (rs,SOME 2)) 2
+        =
+          FST
+          (WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential)
+              (rs⦇1 ↦ 0; 2 ↦ rs 4 + rs 2; 3 ↦ rs 3 + rs 1 * rs 2; 5 ↦ rs 5 + rs 1⦈,
+         SOME 9)) 2 
+            ` by metic_tac[exp_loop1]
+
+    >> `rs 4 = rs` by simp[]
+    >> simp[exp_loop1]
     >> rw[exp_loop2]
     >> rw[exp_loop3] 
     >> rw[exp_loop4]
@@ -1019,7 +1006,7 @@ QED
 
 
 Theorem fac_correct:
-
+  
 Proof
 
 QED
@@ -1074,6 +1061,14 @@ Theorem rename2s_correct:
 Proof
 QED
 
+(*
+TODO  1 July
+3. Prove 
+      correct1 f m1 /\ correct1 g m2 
+      ==> correct1 (f o g) (Cn m1 m2)
+  even more general -> a list of ms  ...
+*)
+
 Theorem Cn1_correct:
   correct1 f1 m1 ∧ correct1 f2 m2 ⇒ ∀n. RUN (Cn m1 [m2]) [n] = (f1 o f2) n  
 Proof
@@ -1082,5 +1077,18 @@ Proof
 
 QED
 
+(*
+Code :
+  1. Comment out unfinished proofs or cheat
+  2. All machines then all proofs or one machine one proof
+  3. How much should i try to finish 
+  4. better to open theory or just use Theorey.theorem
+
+Report:
+  1. Is using stones to describe the change of numbers in the register a good way or 
+  is it not formal enough.
+  2. call theorem or lemma
+  3. to describe the theorem, using words or math format
+ *)
 
 val _ = export_theory ()
