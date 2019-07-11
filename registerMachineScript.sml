@@ -2,6 +2,7 @@ open HolKernel Parse boolLib bossLib;
 open arithmeticTheory;
 open combinTheory;
 open whileTheory;
+open indexedListsTheory;
 
 val _ = new_theory "registerMachine";
 
@@ -637,6 +638,7 @@ val correct2_def = Define `
   correct2 f m ⇔ ∀a b. RUN m [a;b] = f a b
 `;
 
+(*
 Theorem simp_add_correct:
   correct2 (+) simp_add
 Proof
@@ -648,8 +650,22 @@ Proof
   Induct_on `rs0 2`
     >- (rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def] >>
         rw[Once whileTheory.WHILE, Abbr`gd`])
-    >> rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def, Abbr`gd`] 
-    >> rw[Once whileTheory.WHILE, run_machine_1_def, combinTheory.APPLY_UPDATE_THM]
+    >> rw[Ntimes whileTheory.WHILE 2, Abbr`r`, Abbr`m`, Abbr`gd`, run_machine_1_def] 
+    >> rw[combinTheory.APPLY_UPDATE_THM]
+QED
+*)
+
+Theorem simp_add_correct:
+  correct2 (+) simp_add
+Proof
+  rw[simp_add_def, correct2_def, init_machine_def, run_machine_def, RUN_def] >>
+  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 1 = a + b` >>
+  `∀rs0. FST (WHILE gd (r m) (rs0, SOME 1)) 1 = rs0 1 + rs0 2`
+    suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
+  gen_tac >> 
+  rw[Abbr`r`, Abbr`m`, Abbr`gd`] >> 
+  Induct_on `rs0 2` >>
+  rw[Ntimes whileTheory.WHILE 2, run_machine_1_def, combinTheory.APPLY_UPDATE_THM] 
 QED
 
 Theorem addition_correct:
