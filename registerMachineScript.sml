@@ -1001,6 +1001,40 @@ Proof
     >> rw[exp_loop4]
 QED
 
+
+Theorem exp_correct:
+  ∀a b. RUN exponential [a;b;1] = a ** b 
+Proof
+  rw[init_machine_def, run_machine_def, RUN_def] >>
+  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 2 = a ** b` >>
+  `∀rs0. ((rs0 4 = 0) ∧ (rs0 3 = 0) ∧ (rs0 5 = 0)) ⇒
+     (FST (WHILE gd (r m) (rs0, SOME 1)) 2 = (rs0 1 ** rs0 0) * rs0 2)`
+     suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >> rw[] >> 
+  Induct_on `rs0 0` 
+    >- (rw[exponential_def, Ntimes WHILE 2, Abbr`gd`, Abbr`r`, Abbr`m`, run_machine_1_def] >>
+        `rs0 0 = 0` by simp[] >> fs[])
+    >> rw[Abbr`gd`, Abbr`r`, Abbr`m`]
+    >> rw[Once WHILE, run_machine_1_def]
+    >> Induct_on `rs0 1`
+       >- (rw[exponential_def, Once WHILE, run_machine_1_def, APPLY_UPDATE_THM] >> 
+           `rs0 1 = 0` by simp[] >> fs[]
+            >> Induct_on `rs0 5` 
+                >- (rw[exponential_def, Once WHILE , run_machine_1_def, APPLY_UPDATE_THM]
+                    >> `rs0 5 = 0` by simp[] >> fs[]
+                    >> Induct_on `rs0 2`
+                        >- (rw[exponential_def, Once WHILE , run_machine_1_def, APPLY_UPDATE_THM]
+                            >> `rs0 2 = 0` by simp[] >> fs[]
+                            >> Induct_on `rs0 3 = 0`
+                                >- (rw[exponential_def, Once WHILE , run_machine_1_def, APPLY_UPDATE_THM
+                                    >> `rs0 0 = SUC v` by simp[] >> fs[] >> )
+                                >>
+                            )
+                        >>
+                    )
+                >>
+           )
+       >> 
+
 Theorem multi_correct:
   correct2 $* multiplication
 Proof  
@@ -1102,6 +1136,8 @@ Report:
   is it not formal enough.
   2. call theorem or lemma
   3. to describe the theorem, using words or math format
+  4. smaller machines: describe in report or comment or both?
+  5. make transfer and empty more general?
  *)
 
 val _ = export_theory ()
