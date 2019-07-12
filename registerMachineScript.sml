@@ -292,6 +292,7 @@ val dup0_def = Define `
 
 val test_dup0 = EVAL ``RUN (dup0 14 15 0) [27]``;
 
+(* swapping r1 and r2 for multiplication part can make the machine faster *)
 Definition exponential_def:
   exponential  = <|
     Q := {1;2;3;4;5;6;7;8;9;10;11;12;13};
@@ -324,11 +325,12 @@ Definition gt2_def:
 End
 *)
 
-(* 0: input; 1: acc; 2: counter*)
+(* 0: input; 1: acc;*)
 Definition factorial_def:
   factorial = <|
-    Q := {1;2;3;4;5;6;7;8;9;10};
+    Q := {0;1;2;3;4;5;6;7;8;9;10};
     tf := (λn. case n of 
+            | 0 => Inc 1 (SOME 1)
             | 1 => Dec 0 (SOME 2) NONE
             | 2 => Inc 2 (SOME 3)
             | 3 => Dec 1 (SOME 4) (SOME 9)
@@ -340,13 +342,13 @@ Definition factorial_def:
             | 9 => Dec 3 (SOME 10) (SOME 1)
             | 10 => Inc 1 (SOME 9)
            );
-      q0 := 1 ;
-      In := [0;1;2] ;
+      q0 := 0 ;
+      In := [0] ;
       Out := 1 ;
       |>
 End
 
-val fac_t1 = EVAL ``RUN factorial [5;1;0]``;
+val fac_t1 = EVAL ``RUN factorial [5]``;
 
 
 (* 
@@ -590,11 +592,19 @@ Definition Pr_def:
       let base' = mrInst 0 base;
           step' = mrInst 1 step;
           ics = FLAT (MAP (λmm. MAPi (λi r. dup0 (npair 0 i) r (npair 1 0)) mm.In) gdstep');
-
+          copy acc step.In 0
+          copy counter step.In 1
+          copy  drop step.In 2
     in 
-
+      In := MAP (npair 0) (GENLIST I $ LENGTH base.In + 1)
 
 End
+
+RUN (Pr base step) [...] 
+
+Pr guard [i1...in]
+base [i1...in]
+step counter acc [i1...in]
 
 val Cn_def = Define `
   Cn m ms = 
@@ -616,9 +626,11 @@ val Cn_def = Define `
    ----------------------------------
 *)
 
+
 Definition Mu_def:
 
 End
+
 
 (* 
    ---------------------------------- 
@@ -946,26 +958,6 @@ Proof
       simp[FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
 QED
 
-(*
-Theorem exp_loop234:
-  WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) (rs, SOME 9) 
-  = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) 
-    (rs (| 2 |-> rs 2 + rs 3; 
-           3 |-> 0;
-           1 |-> rs 1 + rs 5; 
-           5 |-> 0;
-           2 |-> 0  |) 
-     , SOME 1)      
-Proof
-  rw[exp_loop2, exp_loop3, exp_loop4] >>
-  rw[combinTheory.APPLY_UPDATE_THM] >>
-  qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
-  `rs1 = rs2` suffices_by simp[] >>
-  simp[Abbr `rs1`, Abbr`rs2`] >>
-  simp[FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
-  rw[]
-QED
-*)
 
 Theorem exp_correct:
   ∀a b. RUN exponential [a;b;1] = a ** b 
@@ -980,56 +972,13 @@ Proof
         `rs0 0 = 0` by simp[] >> fs[])
     >> rw[]
     >> rw[Once whileTheory.WHILE, run_machine_1_def, Abbr`gd`, Abbr`r`, Abbr`m`]
-    >> qmatch_abbrev_tac `_ (_ _ _ (rs, SOME2)) _ = _` 
-    >> `FST (WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential)
-             (rs,SOME 2)) 2
-        =
-          FST
-          (WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential)
-              (rs⦇1 ↦ 0; 2 ↦ rs 4 + rs 2; 3 ↦ rs 3 + rs 1 * rs 2; 5 ↦ rs 5 + rs 1⦈,
-         SOME 9)) 2 
-            ` by metic_tac[exp_loop1]
-
-    >> `rs 4 = rs` by simp[]
-    >> simp[exp_loop1]
-    >> rw[exp_loop2]
-    >> rw[exp_loop3] 
-    >> rw[exp_loop4]
+    >> rw[APPLY_UPDATE_THM, exp_loop1]
+    >> rw[APPLY_UPDATE_THM, exp_loop2]
+    >> rw[APPLY_UPDATE_THM, exp_loop3]
+    >> rw[APPLY_UPDATE_THM, exp_loop4]
+    >> `rs0 0 = SUC v` by simp[] >> fs[]
+    >> rw[EXP]
 QED
-
-
-Theorem exp_correct:
-  ∀a b. RUN exponential [a;b;1] = a ** b 
-Proof
-  rw[init_machine_def, run_machine_def, RUN_def] >>
-  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 2 = a ** b` >>
-  `∀rs0. ((rs0 4 = 0) ∧ (rs0 3 = 0) ∧ (rs0 5 = 0)) ⇒
-     (FST (WHILE gd (r m) (rs0, SOME 1)) 2 = (rs0 1 ** rs0 0) * rs0 2)`
-     suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >> rw[] >> 
-  Induct_on `rs0 0` 
-    >- (rw[exponential_def, Ntimes WHILE 2, Abbr`gd`, Abbr`r`, Abbr`m`, run_machine_1_def] >>
-        `rs0 0 = 0` by simp[] >> fs[])
-    >> rw[Abbr`gd`, Abbr`r`, Abbr`m`]
-    >> rw[Once WHILE, run_machine_1_def]
-    >> Induct_on `rs0 1`
-       >- (rw[exponential_def, Once WHILE, run_machine_1_def, APPLY_UPDATE_THM] >> 
-           `rs0 1 = 0` by simp[] >> fs[]
-            >> Induct_on `rs0 5` 
-                >- (rw[exponential_def, Once WHILE , run_machine_1_def, APPLY_UPDATE_THM]
-                    >> `rs0 5 = 0` by simp[] >> fs[]
-                    >> Induct_on `rs0 2`
-                        >- (rw[exponential_def, Once WHILE , run_machine_1_def, APPLY_UPDATE_THM]
-                            >> `rs0 2 = 0` by simp[] >> fs[]
-                            >> Induct_on `rs0 3 = 0`
-                                >- (rw[exponential_def, Once WHILE , run_machine_1_def, APPLY_UPDATE_THM
-                                    >> `rs0 0 = SUC v` by simp[] >> fs[] >> )
-                                >>
-                            )
-                        >>
-                    )
-                >>
-           )
-       >> 
 
 Theorem multi_correct:
   correct2 $* multiplication
@@ -1123,7 +1072,7 @@ QED
 (*
 Code :
   1. Comment out unfinished proofs or cheat
-  2. All machines then all proofs or one machine one proof
+  2. one machine one proof
   3. How much should i try to finish 
   4. better to open theory or just use Theorey.theorem
 
