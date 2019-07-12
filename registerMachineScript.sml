@@ -324,33 +324,29 @@ Definition gt2_def:
 End
 *)
 
+(* 0: input; 1: acc; 2: counter*)
 Definition factorial_def:
   factorial = <|
-    Q := {1;2;3;4;5;6;7;8;9;10;11;12;13;14;15};
+    Q := {1;2;3;4;5;6;7;8;9;10};
     tf := (λn. case n of 
-            | 1 => Dec 0 (SOME 13) (SOME 7)
-            | 2 => Dec 1 (SOME 3) (SOME 5)
-            | 3 => Inc 2 (SOME 4) 
-            | 4 => Inc 3 (SOME 2)
-            | 5 => Dec 3 (SOME 6) (SOME 1)
-            | 6 => Inc 1 (SOME 5) 
-            | 7 => Dec 1 (SOME 7) (SOME 8)
-            | 8 => Dec 2 (SOME 9) (SOME 14)
-            | 9 => Inc 1 (SOME 8)
-            | 10 => Dec 0 (SOME 11) NONE
-            | 11 => Dec 0 (SOME 12) NONE
-            | 12 => Inc 0 (SOME 1)
-            | 13 => Inc 4 (SOME 2)
-            | 14 => Dec 4 (SOME 15) (SOME 10)
-            | 15 => Inc 0 (SOME 14)
+            | 1 => Dec 0 (SOME 2) NONE
+            | 2 => Inc 2 (SOME 3)
+            | 3 => Dec 1 (SOME 4) (SOME 9)
+            | 4 => Dec 2 (SOME 5) (SOME 7)
+            | 5 => Inc 3 (SOME 6)
+            | 6 => Inc 4 (SOME 4) 
+            | 7 => Dec 4 (SOME 8) (SOME 3)
+            | 8 => Inc 2 (SOME 7)
+            | 9 => Dec 3 (SOME 10) (SOME 1)
+            | 10 => Inc 1 (SOME 9)
            );
       q0 := 1 ;
-      In := [0;1] ;
+      In := [0;1;2] ;
       Out := 1 ;
       |>
 End
 
-val fac_t1 = EVAL ``RUN factorial [5;1]``;
+val fac_t1 = EVAL ``RUN factorial [5;1;0]``;
 
 
 (* 
@@ -1053,7 +1049,7 @@ QED
 
 
 Theorem fac_correct:
-  
+  ∀
 Proof
 
 QED
