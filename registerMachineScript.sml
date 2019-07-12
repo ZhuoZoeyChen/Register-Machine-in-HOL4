@@ -543,7 +543,6 @@ val Cnd_def = Define `
 
 
 
-
 (* 
    ---------------------------------- 
    ------ Primitive Recursion  ------
@@ -587,15 +586,15 @@ End
 
 (* Pr.In is in the form of ``accumulator :: counter :: limit :: inputs``.
    base: machine which computes the base case of the premitive recursion.
-   gd  : machine which requires input indicating the input register number. 
-   step: the recursive step
+   step  : the recursive step which checks the guard then perform action
+     followed by recursive call
    *)
 Definition Pr_def:
-  Pr base gd step = 
+  Pr base step = 
       let base' = mrInst 0 base;
-          limit = EL 2 step.In;
+          step' = mrInst 1 step;
+          ics = FLAT (MAP (λmm. MAPi (λi r. dup0 (npair 0 i) r (npair 1 0)) mm.In) gdstep');
 
-          mix' = base' ++ (gd limit)
     in 
 
 
@@ -668,26 +667,24 @@ Proof
   rw[Ntimes whileTheory.WHILE 2, run_machine_1_def, combinTheory.APPLY_UPDATE_THM] 
 QED
 
+
 Theorem addition_correct:
   correct2 (+) addition 
 Proof
   rw[addition_def, correct2_def, init_machine_def, run_machine_def, RUN_def] >>
   qmatch_abbrev_tac `FST (WHILE gd (r m) init) 1 = a + b` >>
-   `∀rs0. FST (WHILE gd (r m) (rs0, SOME 1)) 1 = rs0 1 + rs0 2`
+  `∀rs0. FST (WHILE gd (r m) (rs0, SOME 1)) 1 = rs0 1 + rs0 2`
     suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
-    gen_tac >>
-    Induct_on `rs0 2` 
-      >- (`∀rs0. FST (WHILE gd (r m) (rs0, SOME 4)) 1 = rs0 1` 
-           suffices_by (rw[] >> rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def]) >>
-          gen_tac >>
-          Induct_on `rs0 3`  
-            >- (rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def] >>
-               rw[Once whileTheory.WHILE, Abbr`gd`])
-            >> rw[] >> Cases_on `rs0 3` >> fs[] >> 
-               rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def] >>
-               rw[Once whileTheory.WHILE, run_machine_1_def, combinTheory.APPLY_UPDATE_THM])
-      >> rw[] >> Cases_on `rs0 2` >> fs[] >> rw[Abbr`r`, Abbr`m`, Abbr`gd`] >>
-               rw[Ntimes whileTheory.WHILE 3, run_machine_1_def, combinTheory.APPLY_UPDATE_THM] 
+  gen_tac >>
+  Induct_on `rs0 2` 
+    >- (`∀rs0. FST (WHILE gd (r m) (rs0, SOME 4)) 1 = rs0 1` 
+          suffices_by (rw[] >> rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def]) 
+        >> gen_tac
+        >> Induct_on `rs0 3`
+        >> rw[Abbr`gd`, Abbr`r`, Abbr`m`]
+        >> rw[Ntimes whileTheory.WHILE 2, run_machine_1_def, combinTheory.APPLY_UPDATE_THM])
+    >> rw[Abbr`r`, Abbr`m`, Abbr`gd`] 
+    >> rw[Ntimes whileTheory.WHILE 3, run_machine_1_def, combinTheory.APPLY_UPDATE_THM] 
 QED
 
      
@@ -1061,7 +1058,7 @@ Theorem rename1r_correct:
 Proof
   rw[mrInst_def, correct1_def, RUN_def, run_machine_def, init_machine_def] >>
   qmatch_abbrev_tac `FST (WHILE gd (r m) init) pair = f a` >>
-  rw[rInst_def]>>
+  rw[rInst_def] >>
 
 QED
 
