@@ -411,6 +411,7 @@ Proof
     >> `0 = rs 4` by simp[]
 QED
 
+
 Theorem exp_loop2:
   WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) (rs, SOME 9) 
   = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) 
@@ -538,11 +539,183 @@ val fac_t1 = EVAL ``RUN factorial [3]``;
 val fac_t1 = EVAL ``RUN factorial [5]``;
 
 
+Theorem fac_facts[simp]:
+  (factorial.In = [0]) ∧
+  (factorial.Out = 1) ∧
+  (factorial.q0 = 0) ∧
+  (factorial.Q = {0;1;2;3;4;5;6;7;8;9;10}) ∧
+  (factorial.tf 0 = Inc 1 (SOME 1)) ∧
+  (factorial.tf 1 = Dec 0 (SOME 2) NONE) ∧
+  (factorial.tf 2 = Inc 2 (SOME 3)) ∧
+  (factorial.tf 3 = Dec 1 (SOME 4) (SOME 9))
+Proof
+  simp[factorial_def]
+QED
+
+Theorem fac_loop1_1:
+  WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 factorial) (rs, SOME 4) 
+  = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 factorial) 
+    (rs (| 2 |-> 0; 
+           3 |-> rs 3 + rs 2;
+           4 |-> rs 4 + rs 2 |) 
+     , SOME 7) 
+Proof
+  Induct_on `rs 2` >> rw[] 
+    >- (rw[Once whileTheory.WHILE, run_machine_1_def, factorial_def] >>
+          `rs 2 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
+          qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+          `rs1 = rs2` suffices_by simp[] >> 
+          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
+          rw[] >> rw[])
+    >> qmatch_abbrev_tac`_ = goal` >>
+      rw[Ntimes whileTheory.WHILE 3, run_machine_1_def, factorial_def] >>
+      rw[combinTheory.APPLY_UPDATE_THM] >>
+      `rs 2 = SUC v` by simp[] >> fs[] >> 
+      fs[factorial_def, combinTheory.APPLY_UPDATE_THM] >> 
+      rw[Abbr`goal`] >> qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+      `rs1 = rs2` suffices_by simp[] >>
+      simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
+QED
+
+Theorem fac_loop1_2:
+  WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 factorial) (rs, SOME 7) 
+  = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 factorial) 
+    (rs (| 2 |-> rs 2 + rs 4; 
+           4 |-> 0 |) 
+     , SOME 3) 
+Proof
+  Induct_on `rs 4` >> rw[] 
+    >- (rw[Once whileTheory.WHILE, run_machine_1_def, factorial_def] >>
+          `rs 4 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
+          qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+          `rs1 = rs2` suffices_by simp[] >> 
+          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
+          rw[] >> rw[])
+    >> rw[SimpLHS, Ntimes whileTheory.WHILE 2, run_machine_1_def, factorial_def] >>
+      rw[combinTheory.APPLY_UPDATE_THM] >>
+      `rs 4 = SUC v` by simp[] >> fs[] >> 
+      fs[factorial_def, combinTheory.APPLY_UPDATE_THM] >> 
+      qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+      `rs1 = rs2` suffices_by simp[] >>
+      simp[Abbr `rs1`, Abbr`rs2`] >>
+      simp[FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
+QED
+
+
+Theorem fac_loop1:
+  (rs 4 = 0) ⇒ (WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 factorial) (rs, SOME 3) 
+  = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 factorial) 
+    (rs (| 1 |-> 0; 
+           2 |-> rs 4 + rs 2;
+           3 |-> rs 3 + rs 1 * rs 2|) 
+     , SOME 9))
+Proof
+  Induct_on `rs 1` >> rw[] 
+    >- (rw[Once whileTheory.WHILE, run_machine_1_def, factorial_def] >>
+          `rs 1 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
+          qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+          `rs1 = rs2` suffices_by simp[] >> 
+          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
+          rw[] >> rw[]) 
+    >> rw[Once WHILE, run_machine_1_def]
+    >> rw[fac_loop1_1, combinTheory.APPLY_UPDATE_THM]
+    >> rw[fac_loop1_2, combinTheory.APPLY_UPDATE_THM]
+    >> `rs 1 = SUC v` by simp[] >> fs[]
+    >> rw[factorial_def] 
+    >> qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` 
+    >> `rs1 = rs2` suffices_by simp[] >> simp[Abbr `rs1`, Abbr`rs2`]
+    >> fs[arithmeticTheory.ADD1] 
+    >> `(rs 2 + v * rs 2) = rs 2 * (v + 1)` by simp[]
+    >> simp[FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] 
+    >> rw[]
+    >> `0 = rs 4` by simp[]
+QED
+
+Theorem fac_loop2:
+  WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 factorial) (rs, SOME 9) 
+  = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 factorial) 
+    (rs (| 1 |-> rs 1 + rs 3; 
+           3 |-> 0 |) 
+     , SOME 1) 
+Proof
+  Induct_on `rs 3` >> rw[] 
+    >- (rw[Once whileTheory.WHILE, run_machine_1_def, factorial_def] >>
+          `rs 3 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
+          qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+          `rs1 = rs2` suffices_by simp[] >> 
+          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
+          rw[] >> rw[])
+    >> rw[SimpLHS, Ntimes whileTheory.WHILE 2, run_machine_1_def, factorial_def] >>
+      rw[combinTheory.APPLY_UPDATE_THM] >>
+      `rs 3 = SUC v` by simp[] >> fs[] >> 
+      fs[factorial_def, combinTheory.APPLY_UPDATE_THM] >> 
+      qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+      `rs1 = rs2` suffices_by simp[] >>
+      simp[Abbr `rs1`, Abbr`rs2`] >>
+      simp[FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
+QED
+
+Theorem fac_loop:
+  ((rs 4 = 0) ∧ (rs 3 = 0)) 
+  ⇒
+  (WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 factorial) (rs, SOME 1) 
+  = (rs (| 1 |-> rs 1 * (FACT (rs 2 + rs 0)) DIV (FACT (rs 2)); 
+           2 |-> rs 0 + rs 2|) 
+     , NONE) )
+Proof
+  Induct_on `rs 0` >> rw[] 
+    >- (rw[APPLY_UPDATE_THM, factorial_def, Ntimes whileTheory.WHILE 2, run_machine_1_def] >>
+        `rs 0 = 0` by simp[] >> fs[] >> rw[numeralTheory.numeral_fact, APPLY_UPDATE_ID, arithmeticTheory.])
+    >> rw[Ntimes WHILE 2, run_machine_1_def, APPLY_UPDATE_THM, fac_loop1, fac_loop2]
+    >> rw[APPLY_UPDATE_THM, fac_loop1]
+    >> rw[APPLY_UPDATE_THM, fac_loop2]
+    >> `rs 0 = SUC v` by simp[] >> fs[]
+    >> rw[APPLY_UPDATE_THM, APPLY_UPDATE_ID, ADD1]
+QED
+
 Theorem fac_correct:
   ∀a. RUN factorial [a] = FACT a 
 Proof
-  rw[RUN_def, run_machine_def, factorial_def]
+  rw[RUN_def, run_machine_def, init_machine_def] >>
+  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 1 = _` >>
+  `∀rs0. ((rs0 4 = 0) ∧ (rs0 3 = 0) ∧ (rs0 1 = 0) ∧ (rs0 2 = 0)) ⇒
+     (FST (WHILE gd (r m) (rs0, SOME 0)) 1 = FACT (rs0 0))`
+     suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
+  rw[Abbr`r`, Abbr`m`, Abbr`gd`] >> 
+  rw[Once WHILE, run_machine_1_def] >>
+  Induct_on `rs0 0` 
+    >- (rw[APPLY_UPDATE_THM, factorial_def, Ntimes whileTheory.WHILE 2, run_machine_1_def] >>
+        `rs0 0 = 0` by simp[] >> fs[] >> rw[numeralTheory.numeral_fact])
+    >> rw[]
+    >> rw[Ntimes WHILE 2, run_machine_1_def, APPLY_UPDATE_THM, fac_loop1, fac_loop2]
+    >> rw[APPLY_UPDATE_THM, fac_loop1]
+    >> rw[APPLY_UPDATE_THM, fac_loop2]
+    >> `rs0 0 = SUC v` by simp[] >> fs[]
+    >> rw[APPLY_UPDATE_THM]
 QED
+
+
+Theorem exp_correct:
+  ∀a b. RUN exponential [a;b;1] = a ** b 
+Proof
+  rw[init_machine_def, run_machine_def, RUN_def] >>
+  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 2 = a ** b` >>
+  `∀rs0. ((rs0 4 = 0) ∧ (rs0 3 = 0) ∧ (rs0 5 = 0)) ⇒
+     (FST (WHILE gd (r m) (rs0, SOME 1)) 2 = (rs0 1 ** rs0 0) * rs0 2)`
+     suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >> rw[] >> 
+  Induct_on `rs0 0` 
+    >- (rw[exponential_def, Ntimes whileTheory.WHILE 2, Abbr`gd`, Abbr`r`, Abbr`m`, run_machine_1_def] >>
+        `rs0 0 = 0` by simp[] >> fs[])
+    >> rw[]
+    >> rw[Once whileTheory.WHILE, run_machine_1_def, Abbr`gd`, Abbr`r`, Abbr`m`]
+    >> rw[APPLY_UPDATE_THM, exp_loop1]
+    >> rw[APPLY_UPDATE_THM, exp_loop2]
+    >> rw[APPLY_UPDATE_THM, exp_loop3]
+    >> rw[APPLY_UPDATE_THM, exp_loop4]
+    >> `rs0 0 = SUC v` by simp[] >> fs[]
+    >> rw[EXP]
+QED
+
 
 
 (* 
