@@ -1128,7 +1128,7 @@ val end_plink_def = Define `
 
 
 val plinktf_def = Define`
-  linktf m1Q tf1 tf2 m2init s = 
+  plinktf m1Q tf1 tf2 m2init s = 
      if s ∈ m1Q then end_plink (tf1 s) m2init
      else tf2 s
 `;
@@ -1144,39 +1144,98 @@ Definition plink:
   |>
 End
 
-(* Recursive call function, k stands for k-th iteration *)
-Definition Rc_def:
-  Rc gd step k = 
-      gd' = rename gd k
-      step' = rename step k 
-      copy = copy gd' output to step' input 
-      mix = plink gd' copy step'
-
-End
 
 (* Pr.In is in the form of ``accumulator :: counter :: limit :: inputs``.
    base: machine which computes the base case of the premitive recursion.
    step  : the recursive step which checks the guard then perform action
      followed by recursive call
    *)
-Definition Pr_def:
-  Pr base step = 
-      let base' = mrInst 0 base;
-          step' = mrInst 1 step;
-          ics = FLAT (MAP (λmm. MAPi (λi r. dup0 (npair 0 i) r (npair 1 0)) mm.In) gdstep');
-          copy acc step.In 0
-          copy counter step.In 1
-          copy  drop step.In 2
-    in 
-      In := MAP (npair 0) (GENLIST I $ LENGTH base.In + 1)
 
+Definition guard:
+  guard = <|
+    Q:= {(npair 0 2)};
+    tf := (λs. Dec (npair 0 2) NONE NONE);
+    q0 := (npair 0 2);
+    In := [(npair 0 2)];
+    Out := (npair 0 2);
+  |>
 End
 
+Definition count:
+  count = <|
+    Q:= {(npair 0 0)};
+    tf := (λs. Inc (npair 0 0) NONE);
+    q0 := (npair 0 0);
+    In := [(npair 0 0)];
+    Out := (npair 0 0);
+  |>
+End
+
+Definition Pr_def:
+  Pr base step = 
+      let base' = mrInst 2 base;
+          step' = mrInst 3 step;
+          ptb   = MAPi (λi r. dup0 (npair 0 (i+3)) r (npair 1 0)) base'.In; 
+          btp   = dup0 base'.Out (npair 0 1) (npair 1 0) ;
+          pts0  = dup0 (npair 0 0) (EL 0 step'.In) (npair 1 0);
+          pts1  = dup0 (npair 0 1) (EL 1 step'.In) (npair 1 0);
+          pts   = MAPi (λi r. dup0 (npair 0 (i+3)) r (npair 1 0)) (DROP 2 step'.In);
+          stp   = dup0 step'.Out (npair 0 1) (npair 1 0);
+          pts0'  = msInst 1 pts0;
+          guard' = plink guard pts0';
+          stp'   = msInst 2 stp;
+          mix1   = ptb ++ [base'] ++ [btp];
+          mix2   = [pts1] ++ pts ++ [step'] ++ [count];
+          mix1'  = MAPi (λi m. msInst (i+3) m) mix1;
+          mix2'  = MAPi (λi m. msInst (LENGTH mix1 + i + 3) m) mix2;
+          stp''  = link stp' guard' ;
+          mix    = mix1'++[guard']++mix2'++[stp''];
+    in 
+      link_all mix with In := MAP (λr. npair 0 (r+2)) (GENLIST I $ LENGTH base.In + 1)
+End
+
+Definition add1:
+  add1 = <|
+    Q:={0};
+    tf:=(λs. Inc 0 NONE);
+    q0:=0;
+    In:=[0];
+    Out:=0;
+  |>
+End
+
+val add1 = EVAL``RUN add1 [5]``;
+
+
+val pr0 = EVAL ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [0;2]``;
+val pr1' = teval 1000 ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [3;2]``;
+val pr1 = EVAL ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [3;2]``;
+
+
 RUN (Pr base step) [...] 
+
+(0,0) counter
+(0,1) acc
+(0,2) guard
 
 Pr guard [i1...in]
 base [i1...in]
 step counter acc [i1...in]
+
+ptb = copy inputs base.register 
+base
+btp = copy base.out acc
+guard' = guard ++ pts ++ step ++ counter+1 
+stp' = stp ++ guard'
+mix = ptb ++ base ++ btp ++ guard' ++ stp'
+
+guard
+pts = copy counter::acc::inputs step.register 
+step
+counter+1
+
+stp = copy step.out acc
+guard
 
 val Cn_def = Define `
   Cn m ms = 
@@ -1278,12 +1337,8 @@ QED
 (*
 
 Report:
-  1. Is using stones to describe the change of numbers in the register a good way or 
-  is it not formal enough.
   2. call theorem or lemma
   3. to describe the theorem, using words or math format
-  4. smaller machines: describe in report or comment or both?
-  5. make transfer and empty more general?
  *)
 
 val _ = export_theory ()
