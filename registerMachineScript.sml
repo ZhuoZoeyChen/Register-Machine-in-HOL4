@@ -18,7 +18,7 @@ val _ = Datatype ` action = Inc num (state option) | Dec num (state option) (sta
    ---------------------------------- 
    ----- Register Machine Model -----
    ----------------------------------
-   *)
+*)
 
 
 (*
@@ -106,7 +106,7 @@ val wfad = EVAL ``wfrm addition``
    ---------------------------------- 
    -------- Simple Machines ---------
    ----------------------------------
-   *)
+*)
 
 (* Returns the given constant by putting it in register 0 *)
 val const_def = Define `
@@ -200,6 +200,191 @@ val transfer_def = Define `
 
 val transfer_lemma = EVAL `` run_machine transfer (init_machine transfer [10])``
 
+
+val double_def = Define `
+  double = <|
+    Q := {1;2;3};
+    tf := (λs. case s of 
+            | 1 => Dec 0 (SOME 2) NONE
+            | 2 => Inc 1 (SOME 3) 
+            | 3 => Inc 1 (SOME 1)
+            );
+    q0 := 1;
+    In := [0];
+    Out := 1;
+    |>
+  `;
+
+val test_double = EVAL ``RUN double [15]``
+
+(* 
+   ---------------------------------- 
+   -----    Helper Functions    -----
+   ----------------------------------
+*)
+
+Definition correct1_def:
+  correct1 f m ⇔ ∀a. RUN m [a] = f a   
+End
+
+val correct2_def = Define `
+  correct2 f m ⇔ ∀a b. RUN m [a;b] = f a b
+`;
+
+val dup0_def = Define `
+  dup0 r1 r2 r3= <| 
+    Q := {1;2;3;4;5};
+    tf := (λs. case s of 
+            | 1 => Dec r1 (SOME 2) (SOME 4)
+            | 2 => Inc r2 (SOME 3)
+            | 3 => Inc r3 (SOME 1) 
+            | 4 => Dec r3 (SOME 5) NONE
+            | 5 => Inc r1 (SOME 4)
+            );
+    q0 := 1;
+    In := [r1];
+    Out := r2;
+  |>
+`;
+
+val test_dup0 = EVAL ``RUN (dup0 14 15 0) [27]``;
+
+val rInst_def = Define `
+  (rInst mnum (Inc r sopt) = Inc (npair mnum r) sopt)
+    ∧
+  (rInst mnum (Dec r sopt1 sopt2) = Dec (npair mnum r) sopt1 sopt2)
+`;
+
+val mrInst_def = Define `
+  mrInst mnum m = <|
+    Q := m.Q;
+    tf := rInst mnum o m.tf ;
+    q0 := m.q0;
+    In := MAP (λr. npair mnum r) m.In;
+    Out := npair mnum m.Out;
+  |>
+`;
+
+val test_mrInst_add = EVAL``RUN (mrInst 3 addition) [15; 26]``;
+
+val test_mrInst_constr = EVAL ``mrInst 3 addition``;
+
+val test_mrInst_add2 = EVAL 
+  ``run_machine (mrInst 3 addition) (init_machine (mrInst 3 addition) [15; 26])``;
+
+val sInst_def = Define `
+  (sInst mnum (Inc r sopt) = Inc r (OPTION_MAP (npair mnum) sopt))
+    ∧
+  (sInst mnum (Dec r sopt1 sopt2) = 
+      Dec r (OPTION_MAP (npair mnum) sopt1) (OPTION_MAP (npair mnum) sopt2))
+`;
+
+fun teval n t = 
+  let 
+    val i = ref n
+    fun stop t = if !i <= 0 then true else (i := !i - 1; false)
+  in
+    with_flag (computeLib.stoppers, SOME stop) (computeLib.WEAK_CBV_CONV computeLib.the_compset) t
+  end;
+
+val msInst_def = Define `
+  msInst mnum m = <|
+    Q := IMAGE (npair mnum) m.Q;
+    tf := sInst mnum o m.tf o nsnd;
+    q0 := npair mnum m.q0;
+    In := m.In;
+    Out := m.Out;
+  |>
+`;
+
+val test_msInst_RUN = EVAL``RUN (msInst 3 addition) [15; 26]``;
+
+val test_msInst_add = teval 1000 ``(msInst 2 addition)``;
+
+val upd_def = Define `
+  (upd NONE d = SOME d) 
+    ∧
+  (upd (SOME d0) d = SOME d0)
+`;
+
+val end_link_def = Define `
+  (end_link (Inc q d0) d = Inc q (upd d0 d))
+    ∧
+  (end_link (Dec q d1 d2) d = Dec q (upd d1 d) (upd d2 d))
+`;
+
+
+val linktf_def = Define`
+  linktf m1Q tf1 tf2 m2init s = 
+     if s ∈ m1Q then end_link (tf1 s) m2init
+     else tf2 s
+`;
+
+val link_def = Define`
+  link m1 m2 = <|
+    Q := m1.Q ∪ m2.Q;
+    tf := linktf m1.Q m1.tf m2.tf m2.q0;
+    q0 := m1.q0;
+    In := m1.In;
+    Out := m2.Out;
+  |>
+`;
+
+val _ = set_mapped_fixity {
+  term_name = "link",
+  tok = "⇨",
+  fixity = Infixl 500
+}
+
+
+val link_all_def = Define`
+  (link_all [] = identity) ∧     
+  (link_all (m::ms) = FOLDL (λa mm. a ⇨ mm) m ms)
+`;
+
+
+
+val test_lka = EVAL``link_all [(mrInst 1 (msInst 1 identity)); (mrInst 2 (msInst 2 identity))]``;
+
+val test_link_out = EVAL ``RUN (link_all [identity;identity2]) [5]``;
+
+
+val test_id2 = EVAL ``RUN identity2 [15]``;
+
+val test_link = EVAL `` RUN (msInst 0 identity ⇨ msInst 2 (dup0 0 10 1 ) ⇨ msInst 1 identity2) [15] ``;
+
+val test_link_ddd = teval 10000 ``(MAPi msInst [double; double])``;
+
+val test_link_run = EVAL ``
+    let ma = (let m = MAPi (λi m. (mrInst (i+1) m)) [double;double];
+                                 dup = dup0 (HD m).Out (HD (LAST m).In) 0;
+                                 mix = MAPi msInst [HD m ; dup ; LAST m]
+               in 
+                 link_all mix)
+    in 
+      run_machine ma (init_machine ma [2])
+``;
+
+val test_link_RUN = EVAL ``RUN (let m = MAPi (λi m. (mrInst (i+1) m)) [double;double];
+                                 dup = dup0 (HD m).Out (HD (LAST m).In) 0;
+                                 mix = MAPi msInst [HD m ; dup ; LAST m]
+               in 
+                 link_all mix) [5]``;
+
+val test_1 = computeLib.RESTR_EVAL_CONV [``$o``] `` let m = MAPi (λi m. (mrInst (i+1) m)) [double;double];
+                                 dup = dup0 (HD m).Out (HD (LAST m).In) 0;
+                                 mix = MAPi msInst [HD m ; dup ; LAST m]
+               in 
+                 link_all mix``;
+
+val _ = computeLib.set_skip computeLib.the_compset ``COND`` (SOME 1);
+
+(* 
+   -------------------------------------------------------------   
+   -------- More Complicated machines and their proofs ---------
+   -------------------------------------------------------------  
+*)
+
 Definition simp_add_def:
   simp_add = <|
     Q := {1;2};
@@ -216,6 +401,21 @@ End
 
 val s_adR = EVAL ``RUN simp_add [15; 23]``;
 val s_adr = EVAL ``run_machine simp_add (init_machine simp_add [15;27])``;
+
+
+Theorem simp_add_correct:
+  correct2 (+) simp_add
+Proof
+  rw[simp_add_def, correct2_def, init_machine_def, run_machine_def, RUN_def] >>
+  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 1 = a + b` >>
+  `∀rs0. FST (WHILE gd (r m) (rs0, SOME 1)) 1 = rs0 1 + rs0 2`
+    suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
+  gen_tac >> 
+  rw[Abbr`r`, Abbr`m`, Abbr`gd`] >> 
+  Induct_on `rs0 2` >>
+  rw[Ntimes whileTheory.WHILE 2, run_machine_1_def, combinTheory.APPLY_UPDATE_THM] 
+QED
+
 
 val addition_def = Define `
   addition = <| 
@@ -238,6 +438,27 @@ val addition_0 = EVAL ``init_machine addition [15; 23]``;
 val addition_lemma = EVAL `` run_machine addition (init_machine addition [15; 23])``;
 val R_addition = EVAL ``RUN addition [15; 23]``;
 
+
+Theorem addition_correct:
+  correct2 (+) addition 
+Proof
+  rw[addition_def, correct2_def, init_machine_def, run_machine_def, RUN_def] >>
+  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 1 = a + b` >>
+  `∀rs0. FST (WHILE gd (r m) (rs0, SOME 1)) 1 = rs0 1 + rs0 2`
+    suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
+  gen_tac >>
+  Induct_on `rs0 2` 
+    >- (`∀rs0. FST (WHILE gd (r m) (rs0, SOME 4)) 1 = rs0 1` 
+          suffices_by (rw[] >> rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def]) 
+        >> gen_tac
+        >> Induct_on `rs0 3`
+        >> rw[Abbr`gd`, Abbr`r`, Abbr`m`]
+        >> rw[Ntimes whileTheory.WHILE 2, run_machine_1_def, combinTheory.APPLY_UPDATE_THM])
+    >> rw[Abbr`r`, Abbr`m`, Abbr`gd`] 
+    >> rw[Ntimes whileTheory.WHILE 3, run_machine_1_def, combinTheory.APPLY_UPDATE_THM] 
+QED
+
+     
 val multiplication_def = Define `
    multiplication = <| 
       Q := {1;2;3;4;5;6} ; 
@@ -258,40 +479,83 @@ val multiplication_def = Define `
 val multiplication_lemma = EVAL `` run_machine multiplication (init_machine multiplication [3; 4])``
 val multiplication_RUN = EVAL ``RUN multiplication [2; 15]``;
 
-val double_def = Define `
-  double = <|
-    Q := {1;2;3};
-    tf := (λs. case s of 
-            | 1 => Dec 0 (SOME 2) NONE
-            | 2 => Inc 1 (SOME 3) 
-            | 3 => Inc 1 (SOME 1)
-            );
-    q0 := 1;
-    In := [0];
-    Out := 1;
-    |>
-  `;
 
-val test_double = EVAL ``RUN double [15]``
+Theorem mult_loop1:
+  WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) (rs, SOME 2) 
+  = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) 
+    (rs (| 1 |-> 0; 
+           2 |-> rs 2 + rs 1; 
+           3 |-> rs 3 + rs 1 |) 
+     , SOME 5) 
+Proof
+  Induct_on `rs 1` >> rw[] 
+    >- (rw[Once whileTheory.WHILE, run_machine_1_def, multiplication_def] >>
+          `rs 1 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
+          qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+          `rs1 = rs2` suffices_by simp[] >> 
+          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
+          rw[] >> rw[])
+    >> qmatch_abbrev_tac`_ = goal` >>
+      rw[Ntimes whileTheory.WHILE 3, run_machine_1_def, multiplication_def] >>
+      rw[combinTheory.APPLY_UPDATE_THM] >>
+      `rs 1 = SUC v` by simp[] >> fs[] >> 
+      fs[multiplication_def, combinTheory.APPLY_UPDATE_THM] >> 
+      rw[Abbr`goal`] >> qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+      `rs1 = rs2` suffices_by simp[] >>
+      simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
+QED
 
+Theorem mult_loop2:
+  WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) (rs, SOME 5) 
+  = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) 
+    (rs (| 1 |-> rs 1 + rs 3; 
+           3 |-> 0 |) 
+     , SOME 1) 
+Proof
+  Induct_on `rs 3` >> rw[] 
+    >- (rw[Once whileTheory.WHILE, run_machine_1_def, multiplication_def] >>
+          `rs 3 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
+          qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+          `rs1 = rs2` suffices_by simp[] >> 
+          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
+          rw[] >> rw[])
+    >> rw[SimpLHS, Ntimes whileTheory.WHILE 2, run_machine_1_def, multiplication_def] >>
+      rw[combinTheory.APPLY_UPDATE_THM] >>
+      `rs 3 = SUC v` by simp[] >> fs[] >> 
+      fs[multiplication_def, combinTheory.APPLY_UPDATE_THM] >> 
+      qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
+      `rs1 = rs2` suffices_by simp[] >>
+      simp[Abbr `rs1`, Abbr`rs2`] >>
+      simp[FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
+QED
 
-val dup0_def = Define `
-  dup0 r1 r2 r3= <| 
-    Q := {1;2;3;4;5};
-    tf := (λs. case s of 
-            | 1 => Dec r1 (SOME 2) (SOME 4)
-            | 2 => Inc r2 (SOME 3)
-            | 3 => Inc r3 (SOME 1) 
-            | 4 => Dec r3 (SOME 5) NONE
-            | 5 => Inc r1 (SOME 4)
-            );
-    q0 := 1;
-    In := [r1];
-    Out := r2;
-  |>
-`;
+Theorem mult_facts[simp]:
+  (multiplication.In = [0; 1]) ∧
+  (multiplication.Out = 2) ∧
+  (multiplication.q0 = 1) ∧
+  (multiplication.Q = {1;2;3;4;5;6}) ∧
+  (multiplication.tf 1 = Dec 0 (SOME 2) NONE)
+Proof
+  simp[multiplication_def]
+QED
+        
 
-val test_dup0 = EVAL ``RUN (dup0 14 15 0) [27]``;
+Theorem multi_correct:
+  correct2 $* multiplication
+Proof  
+  rw[correct2_def, init_machine_def, run_machine_def, RUN_def] >>
+  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 2 = a * b` >>
+  `∀rs0. (rs0 3 = 0) ⇒ (FST (WHILE gd (r m) (rs0, SOME 1)) 2 = rs0 0 * rs0 1 + rs0 2)` 
+    suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >> rw[] >>
+  Induct_on `rs0 0` >> rw[]
+    >- (rw[multiplication_def, Ntimes whileTheory.WHILE 2, Abbr`gd`, Abbr`r`, Abbr`m`, run_machine_1_def] >>
+        `rs0 0 = 0` by simp[] >> fs[])
+    >> rw[Once whileTheory.WHILE, run_machine_1_def, Abbr`gd`, Abbr`r`, Abbr`m`, mult_loop1]
+    >> rw[mult_loop2]
+    >> rw[combinTheory.APPLY_UPDATE_THM] >> `rs0 0 = SUC v` by simp[] >> fs[]
+    >> fs[arithmeticTheory.ADD1]
+QED
+
 
 (* swapping r1 and r2 for multiplication part can make the machine faster *)
 Definition exponential_def:
@@ -505,13 +769,8 @@ Proof
     >> rw[EXP]
 QED
 
-(*
-Definition gt2_def:
-  gt2 = <||>
-End
-*)
 
-(* 0: input; 1: acc;*)
+(* 0: input *)
 Definition factorial_def:
   factorial = <|
     Q := {0;1;2;3;4;5;6;7;8;9;10};
@@ -832,135 +1091,7 @@ End
    -------------------------------------- 
    *)
 
-val rInst_def = Define `
-  (rInst mnum (Inc r sopt) = Inc (npair mnum r) sopt)
-    ∧
-  (rInst mnum (Dec r sopt1 sopt2) = Dec (npair mnum r) sopt1 sopt2)
-`;
 
-val mrInst_def = Define `
-  mrInst mnum m = <|
-    Q := m.Q;
-    tf := rInst mnum o m.tf ;
-    q0 := m.q0;
-    In := MAP (λr. npair mnum r) m.In;
-    Out := npair mnum m.Out;
-  |>
-`;
-
-val test_mrInst_add = EVAL``RUN (mrInst 3 addition) [15; 26]``;
-
-val test_mrInst_constr = EVAL ``mrInst 3 addition``;
-
-val test_mrInst_add2 = EVAL 
-  ``run_machine (mrInst 3 addition) (init_machine (mrInst 3 addition) [15; 26])``;
-
-val sInst_def = Define `
-  (sInst mnum (Inc r sopt) = Inc r (OPTION_MAP (npair mnum) sopt))
-    ∧
-  (sInst mnum (Dec r sopt1 sopt2) = 
-      Dec r (OPTION_MAP (npair mnum) sopt1) (OPTION_MAP (npair mnum) sopt2))
-`;
-
-fun teval n t = 
-  let 
-    val i = ref n
-    fun stop t = if !i <= 0 then true else (i := !i - 1; false)
-  in
-    with_flag (computeLib.stoppers, SOME stop) (computeLib.WEAK_CBV_CONV computeLib.the_compset) t
-  end;
-
-val msInst_def = Define `
-  msInst mnum m = <|
-    Q := IMAGE (npair mnum) m.Q;
-    tf := sInst mnum o m.tf o nsnd;
-    q0 := npair mnum m.q0;
-    In := m.In;
-    Out := m.Out;
-  |>
-`;
-
-val test_msInst_RUN = EVAL``RUN (msInst 3 addition) [15; 26]``;
-
-val test_msInst_add = teval 1000 ``(msInst 2 addition)``;
-
-val upd_def = Define `
-  (upd NONE d = SOME d) 
-    ∧
-  (upd (SOME d0) d = SOME d0)
-`;
-
-val end_link_def = Define `
-  (end_link (Inc q d0) d = Inc q (upd d0 d))
-    ∧
-  (end_link (Dec q d1 d2) d = Dec q (upd d1 d) (upd d2 d))
-`;
-
-
-val linktf_def = Define`
-  linktf m1Q tf1 tf2 m2init s = 
-     if s ∈ m1Q then end_link (tf1 s) m2init
-     else tf2 s
-`;
-
-val link_def = Define`
-  link m1 m2 = <|
-    Q := m1.Q ∪ m2.Q;
-    tf := linktf m1.Q m1.tf m2.tf m2.q0;
-    q0 := m1.q0;
-    In := m1.In;
-    Out := m2.Out;
-  |>
-`;
-
-val _ = set_mapped_fixity {
-  term_name = "link",
-  tok = "⇨",
-  fixity = Infixl 500
-}
-
-
-val link_all_def = Define`
-  (link_all [] = identity) ∧     
-  (link_all (m::ms) = FOLDL (λa mm. a ⇨ mm) m ms)
-`;
-
-
-
-val test_lka = EVAL``link_all [(mrInst 1 (msInst 1 identity)); (mrInst 2 (msInst 2 identity))]``;
-
-val test_link_out = EVAL ``RUN (link_all [identity;identity2]) [5]``;
-
-
-val test_id2 = EVAL ``RUN identity2 [15]``;
-
-val test_link = EVAL `` RUN (msInst 0 identity ⇨ msInst 2 (dup0 0 10 1 ) ⇨ msInst 1 identity2) [15] ``;
-
-val test_link_ddd = teval 10000 ``(MAPi msInst [double; double])``;
-
-val test_link_run = EVAL ``
-    let ma = (let m = MAPi (λi m. (mrInst (i+1) m)) [double;double];
-                                 dup = dup0 (HD m).Out (HD (LAST m).In) 0;
-                                 mix = MAPi msInst [HD m ; dup ; LAST m]
-               in 
-                 link_all mix)
-    in 
-      run_machine ma (init_machine ma [2])
-``;
-
-val test_link_RUN = EVAL ``RUN (let m = MAPi (λi m. (mrInst (i+1) m)) [double;double];
-                                 dup = dup0 (HD m).Out (HD (LAST m).In) 0;
-                                 mix = MAPi msInst [HD m ; dup ; LAST m]
-               in 
-                 link_all mix) [5]``;
-
-val test_1 = computeLib.RESTR_EVAL_CONV [``$o``] `` let m = MAPi (λi m. (mrInst (i+1) m)) [double;double];
-                                 dup = dup0 (HD m).Out (HD (LAST m).In) 0;
-                                 mix = MAPi msInst [HD m ; dup ; LAST m]
-               in 
-                 link_all mix``;
-
-val _ = computeLib.set_skip computeLib.the_compset ``COND`` (SOME 1);
 
 val Cn_def = Define `
   Cn m ms = 
@@ -1073,130 +1204,10 @@ Definition Mu_def:
 End
 
 
-(* 
-   ---------------------------------- 
-   --------     Proving     ---------
-   ----------------------------------
-   *)
 
 
-(* Machine and math operation returns the same output *)
 
-val correct2_def = Define `
-  correct2 f m ⇔ ∀a b. RUN m [a;b] = f a b
-`;
-
-Theorem simp_add_correct:
-  correct2 (+) simp_add
-Proof
-  rw[simp_add_def, correct2_def, init_machine_def, run_machine_def, RUN_def] >>
-  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 1 = a + b` >>
-  `∀rs0. FST (WHILE gd (r m) (rs0, SOME 1)) 1 = rs0 1 + rs0 2`
-    suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
-  gen_tac >> 
-  rw[Abbr`r`, Abbr`m`, Abbr`gd`] >> 
-  Induct_on `rs0 2` >>
-  rw[Ntimes whileTheory.WHILE 2, run_machine_1_def, combinTheory.APPLY_UPDATE_THM] 
-QED
-
-
-Theorem addition_correct:
-  correct2 (+) addition 
-Proof
-  rw[addition_def, correct2_def, init_machine_def, run_machine_def, RUN_def] >>
-  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 1 = a + b` >>
-  `∀rs0. FST (WHILE gd (r m) (rs0, SOME 1)) 1 = rs0 1 + rs0 2`
-    suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
-  gen_tac >>
-  Induct_on `rs0 2` 
-    >- (`∀rs0. FST (WHILE gd (r m) (rs0, SOME 4)) 1 = rs0 1` 
-          suffices_by (rw[] >> rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def]) 
-        >> gen_tac
-        >> Induct_on `rs0 3`
-        >> rw[Abbr`gd`, Abbr`r`, Abbr`m`]
-        >> rw[Ntimes whileTheory.WHILE 2, run_machine_1_def, combinTheory.APPLY_UPDATE_THM])
-    >> rw[Abbr`r`, Abbr`m`, Abbr`gd`] 
-    >> rw[Ntimes whileTheory.WHILE 3, run_machine_1_def, combinTheory.APPLY_UPDATE_THM] 
-QED
-
-     
-Theorem mult_loop1:
-  WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) (rs, SOME 2) 
-  = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) 
-    (rs (| 1 |-> 0; 
-           2 |-> rs 2 + rs 1; 
-           3 |-> rs 3 + rs 1 |) 
-     , SOME 5) 
-Proof
-  Induct_on `rs 1` >> rw[] 
-    >- (rw[Once whileTheory.WHILE, run_machine_1_def, multiplication_def] >>
-          `rs 1 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
-          qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
-          `rs1 = rs2` suffices_by simp[] >> 
-          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
-          rw[] >> rw[])
-    >> qmatch_abbrev_tac`_ = goal` >>
-      rw[Ntimes whileTheory.WHILE 3, run_machine_1_def, multiplication_def] >>
-      rw[combinTheory.APPLY_UPDATE_THM] >>
-      `rs 1 = SUC v` by simp[] >> fs[] >> 
-      fs[multiplication_def, combinTheory.APPLY_UPDATE_THM] >> 
-      rw[Abbr`goal`] >> qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
-      `rs1 = rs2` suffices_by simp[] >>
-      simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
-QED
-
-Theorem mult_loop2:
-  WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) (rs, SOME 5) 
-  = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) 
-    (rs (| 1 |-> rs 1 + rs 3; 
-           3 |-> 0 |) 
-     , SOME 1) 
-Proof
-  Induct_on `rs 3` >> rw[] 
-    >- (rw[Once whileTheory.WHILE, run_machine_1_def, multiplication_def] >>
-          `rs 3 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
-          qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
-          `rs1 = rs2` suffices_by simp[] >> 
-          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
-          rw[] >> rw[])
-    >> rw[SimpLHS, Ntimes whileTheory.WHILE 2, run_machine_1_def, multiplication_def] >>
-      rw[combinTheory.APPLY_UPDATE_THM] >>
-      `rs 3 = SUC v` by simp[] >> fs[] >> 
-      fs[multiplication_def, combinTheory.APPLY_UPDATE_THM] >> 
-      qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
-      `rs1 = rs2` suffices_by simp[] >>
-      simp[Abbr `rs1`, Abbr`rs2`] >>
-      simp[FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
-QED
-
-Theorem mult_facts[simp]:
-  (multiplication.In = [0; 1]) ∧
-  (multiplication.Out = 2) ∧
-  (multiplication.q0 = 1) ∧
-  (multiplication.Q = {1;2;3;4;5;6}) ∧
-  (multiplication.tf 1 = Dec 0 (SOME 2) NONE)
-Proof
-  simp[multiplication_def]
-QED
-        
-
-Theorem multi_correct:
-  correct2 $* multiplication
-Proof  
-  rw[correct2_def, init_machine_def, run_machine_def, RUN_def] >>
-  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 2 = a * b` >>
-  `∀rs0. (rs0 3 = 0) ⇒ (FST (WHILE gd (r m) (rs0, SOME 1)) 2 = rs0 0 * rs0 1 + rs0 2)` 
-    suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >> rw[] >>
-  Induct_on `rs0 0` >> rw[]
-    >- (rw[multiplication_def, Ntimes whileTheory.WHILE 2, Abbr`gd`, Abbr`r`, Abbr`m`, run_machine_1_def] >>
-        `rs0 0 = 0` by simp[] >> fs[])
-    >> rw[Once whileTheory.WHILE, run_machine_1_def, Abbr`gd`, Abbr`r`, Abbr`m`, mult_loop1]
-    >> rw[mult_loop2]
-    >> rw[combinTheory.APPLY_UPDATE_THM] >> `rs0 0 = SUC v` by simp[] >> fs[]
-    >> fs[arithmeticTheory.ADD1]
-QED
-
-
+(*
 Theorem dup0_correct:
   ∀a b c. (rsf dup0 a b c) a = a 
 Proof
@@ -1209,9 +1220,7 @@ Proof
   
 QED
 
-Definition correct1_def:
-  correct1 f m ⇔ ∀a. RUN m [a] = f a   
-End
+
 
 Theorem double_correct:
   correct1 ( *2 ) double
@@ -1246,6 +1255,8 @@ Theorem rename2s_correct:
 Proof
 QED
 
+*)
+
 (*
 TODO  1 July
 3. Prove 
@@ -1254,6 +1265,7 @@ TODO  1 July
   even more general -> a list of ms  ...
 *)
 
+(*
 Theorem Cn1_correct:
   correct1 f1 m1 ∧ correct1 f2 m2 ⇒ ∀n. RUN (Cn m1 [m2]) [n] = (f1 o f2) n  
 Proof
@@ -1261,13 +1273,9 @@ Proof
   rw[Cn_def] >>
 
 QED
+*)
 
 (*
-Code :
-  1. Comment out unfinished proofs or cheat
-  2. one machine one proof
-  3. How much should i try to finish 
-  4. better to open theory or just use Theorey.theorem
 
 Report:
   1. Is using stones to describe the change of numbers in the register a good way or 
