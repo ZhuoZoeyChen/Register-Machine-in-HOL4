@@ -738,12 +738,16 @@ Theorem fac_correct:
   ∀a. RUN factorial [a] = FACT a 
 Proof
   rw[RUN_def, run_machine_def, init_machine_def] >>
-  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 1 = _` >>
+  rw[Once WHILE, run_machine_1_def, findi_def] >>
+  rw[Once WHILE, run_machine_1_def] 
+  >- (rw[Once WHILE, run_machine_1_def, factorial_def, APPLY_UPDATE_THM]
+    >> rw[APPLY_UPDATE_THM, factorial_def, Ntimes whileTheory.WHILE 2, run_machine_1_def])
+  >>
+
+ qmatch_abbrev_tac `FST (WHILE gd (r m) init) 1 = _` >>
   `∀rs0. ((rs0 4 = 0) ∧ (rs0 3 = 0)) ⇒
-     (FST (WHILE gd (r m) (rs0, SOME 0)) 1 = FACT (rs0 0))`
+     (FST (WHILE gd (r m) (rs0, SOME 1)) 1 = (rs0 1) * FACT (rs0 0 + rs0 2))`
      suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
-  rw[Abbr`r`, Abbr`m`, Abbr`gd`] >> 
-  rw[Once WHILE, run_machine_1_def] >>
   Induct_on `rs0 0` 
     >- (rw[Once WHILE, run_machine_1_def, factorial_def, APPLY_UPDATE_THM]rw[APPLY_UPDATE_THM, factorial_def, Ntimes whileTheory.WHILE 2, run_machine_1_def] >>
         `rs0 0 = 0` by simp[] >> fs[] >> rw[numeralTheory.numeral_fact])
@@ -753,6 +757,32 @@ Proof
     >> rw[FACT] >> simp[ADD1] 
     >> rw[APPLY_UPDATE_THM]
 QED
+
+
+Theorem fac_correct:
+  ∀a. RUN factorial [a] = FACT a 
+Proof
+  rw[RUN_def, run_machine_def, init_machine_def] >>
+  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 1 = _` >>
+  `∀rs0. ((rs0 4 = 0) ∧ (rs0 3 = 0) ∧ (rs0 1 = 0) ∧ (rs0 2 = 0)) ⇒
+     (FST (WHILE gd (r m) (rs0 , SOME 0)) 1 = FACT (rs0 0))`
+     suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
+  `∀rs0. ((rs0 4 = 0) ∧ (rs0 3 = 0) ∧ (rs0 1 = 0)) ⇒
+     (FST (WHILE gd (r m) (rs0 (|1 |-> rs0 1 + 1 |), SOME 1)) 1 = (rs0 1) * )`
+     suffices_by (rw[Abbr`r`, Abbr`m`, Abbr`gd`] >> rw[Once WHILE, run_machine_1_def]) >>
+  rw[] >> 
+  Induct_on `rs0 0` >> rw[Abbr`r`, Abbr`m`, Abbr`gd`]
+    >- (rw[APPLY_UPDATE_THM, factorial_def, Ntimes whileTheory.WHILE 2, run_machine_1_def] >>
+        `rs0 0 = 0` by simp[] >> fs[] >> rw[numeralTheory.numeral_fact])
+    >> `rs0 (| 1 |-> 1 |) 0 = rs0 0` by simp[APPLY_UPDATE_THM] >> fs[]
+    >> rw[Once WHILE, run_machine_1_def]
+    >> rw[Once WHILE, run_machine_1_def]
+    >> rw[APPLY_UPDATE_THM, fac_loop1]
+    >> rw[APPLY_UPDATE_THM, fac_loop2]
+    >> `rs0 0 = SUC v` by simp[] >> fs[]
+    >> rw[APPLY_UPDATE_THM]
+QED
+
 
 Theorem exp_correct:
   ∀a b. RUN exponential [a;b;1] = a ** b 
@@ -949,21 +979,6 @@ val Cn_def = Define `
 val test_Cn_iden = EVAL ``RUN (Cn identity [identity]) [5]``;
 
 val test_Cn_add = EVAL ``RUN (Cn addition [addition; addition]) [2;2]``;
-
-(*
-val Cnd_def = Define `
-  Cnd m ms =  
-    let mms = MAPi (λi mm. mrInst (i+2) mm) (m::ms);
-        m' = HD mms;
-        ms' = TL mms;
-        ics = FLAT (MAP (λmm. MAPi (λi r. dup0 (npair 0 i) r (npair 1 0)) mm.In) ms');
-        ocs = MAPi (λi mm. dup0 mm.Out (EL i m'.In) (npair 1 0)) ms';
-        mix = ics++ms'++ocs++[m'];
-        mix' = MAPi msInst mix;
-    in 
-      link_all mix' with In := MAP (λm. MAP (npair 0) m.In) ms
-`;
-*)
 
 
 
