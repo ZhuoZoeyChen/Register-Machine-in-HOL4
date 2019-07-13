@@ -661,7 +661,7 @@ Theorem fac_loop:
   ⇒
   (WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 factorial) (rs, SOME 1) 
   = (rs (| 0 |-> 0;
-           1 |-> rs 1 * ((FACT (rs 2 + rs 0)) DIV (FACT (rs 2))); 
+           1 |-> FACT (rs 2 + rs 0); 
            2 |-> rs 0 + rs 2|) 
      , NONE) )
 Proof
@@ -711,18 +711,48 @@ Proof
      (FST (WHILE gd (r m) (rs0, SOME 0)) 1 = FACT (rs0 0))`
      suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
   rw[Abbr`r`, Abbr`m`, Abbr`gd`] >> 
-  rw[Once WHILE, run_machine_1_def] >>
-  Induct_on `rs0 0` 
+  Induct_on `rs0 0` >> rw[Once WHILE, run_machine_1_def]
     >- (rw[APPLY_UPDATE_THM, factorial_def, Ntimes whileTheory.WHILE 2, run_machine_1_def] >>
         `rs0 0 = 0` by simp[] >> fs[] >> rw[numeralTheory.numeral_fact])
-    >> rw[]
-    >> rw[Ntimes WHILE 2, run_machine_1_def, APPLY_UPDATE_THM, fac_loop1, fac_loop2]
+    >> fs[Once WHILE, run_machine_1_def, APPLY_UPDATE_THM]
+    >> fs[Once WHILE, run_machine_1_def, APPLY_UPDATE_THM]
+    >> rw[APPLY_UPDATE_THM, fac_loop1]
+    >> rw[APPLY_UPDATE_THM, fac_loop2]
+    >> `rs0 0 = SUC v` by simp[] >> fs[]
+    >> rw[Once WHILE, run_machine_1_def, APPLY_UPDATE_THM]
+    >> Cases_on `v` 
+        >- (simp[] >> rw[Once WHILE, run_machine_1_def] >> rw[numeral_fact, APPLY_UPDATE_THM])
+        >> simp[] >> rw[]
+
+        >> rw[Ntimes WHILE 2, run_machine_1_def, APPLY_UPDATE_THM, fac_loop1, fac_loop2]
     >> rw[APPLY_UPDATE_THM, fac_loop1]
     >> rw[APPLY_UPDATE_THM, fac_loop2]
     >> `rs0 0 = SUC v` by simp[] >> fs[]
     >> rw[APPLY_UPDATE_THM]
+    >>
 QED
 
+
+
+Theorem fac_correct:
+  ∀a. RUN factorial [a] = FACT a 
+Proof
+  rw[RUN_def, run_machine_def, init_machine_def] >>
+  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 1 = _` >>
+  `∀rs0. ((rs0 4 = 0) ∧ (rs0 3 = 0)) ⇒
+     (FST (WHILE gd (r m) (rs0, SOME 0)) 1 = FACT (rs0 0))`
+     suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
+  rw[Abbr`r`, Abbr`m`, Abbr`gd`] >> 
+  rw[Once WHILE, run_machine_1_def] >>
+  Induct_on `rs0 0` 
+    >- (rw[Once WHILE, run_machine_1_def, factorial_def, APPLY_UPDATE_THM]rw[APPLY_UPDATE_THM, factorial_def, Ntimes whileTheory.WHILE 2, run_machine_1_def] >>
+        `rs0 0 = 0` by simp[] >> fs[] >> rw[numeralTheory.numeral_fact])
+    >> rw[]
+    >> rw[Ntimes WHILE 2, run_machine_1_def, APPLY_UPDATE_THM, fac_loop1, fac_loop2]
+    >> `rs0 0 = SUC v` by simp[] >> fs[]
+    >> rw[FACT] >> simp[ADD1] 
+    >> rw[APPLY_UPDATE_THM]
+QED
 
 Theorem exp_correct:
   ∀a b. RUN exponential [a;b;1] = a ** b 
