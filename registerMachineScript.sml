@@ -3,6 +3,7 @@ open arithmeticTheory;
 open combinTheory;
 open whileTheory;
 open indexedListsTheory;
+open numeralTheory;
 
 val _ = new_theory "registerMachine";
 
@@ -659,18 +660,46 @@ Theorem fac_loop:
   ((rs 4 = 0) ∧ (rs 3 = 0)) 
   ⇒
   (WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 factorial) (rs, SOME 1) 
-  = (rs (| 1 |-> rs 1 * (FACT (rs 2 + rs 0)) DIV (FACT (rs 2)); 
+  = (rs (| 0 |-> 0;
+           1 |-> rs 1 * ((FACT (rs 2 + rs 0)) DIV (FACT (rs 2))); 
            2 |-> rs 0 + rs 2|) 
      , NONE) )
 Proof
   Induct_on `rs 0` >> rw[] 
     >- (rw[APPLY_UPDATE_THM, factorial_def, Ntimes whileTheory.WHILE 2, run_machine_1_def] >>
-        `rs 0 = 0` by simp[] >> fs[] >> rw[numeralTheory.numeral_fact, APPLY_UPDATE_ID, arithmeticTheory.])
-    >> rw[Ntimes WHILE 2, run_machine_1_def, APPLY_UPDATE_THM, fac_loop1, fac_loop2]
+        `rs 0 = 0` by simp[] >> fs[] >> 
+         rw[APPLY_UPDATE_ID, DIVMOD_ID, FACT_LESS] >>
+         rw[FUN_EQ_THM, APPLY_UPDATE_THM] >> Cases_on `x` >> simp[]
+        )
+    >> rw[Once WHILE, run_machine_1_def]
+    >> rw[Once WHILE, run_machine_1_def]
     >> rw[APPLY_UPDATE_THM, fac_loop1]
     >> rw[APPLY_UPDATE_THM, fac_loop2]
-    >> `rs 0 = SUC v` by simp[] >> fs[]
-    >> rw[APPLY_UPDATE_THM, APPLY_UPDATE_ID, ADD1]
+
+    >> rw[FUN_EQ_THM, APPLY_UPDATE_THM]
+    >> Cases_on `x` >> simp[]  
+       >> Cases_on `n` 
+          >- (simp[] >> `rs 0 = SUC v` by simp[] >> fs[] >>
+              `rs 2 + SUC v = rs 2 + v + 1` by simp[] >> rw[] >>
+
+              rw[FACT, DIVMOD_ID, numeral_fact] >> 
+              `FACT (SUC (rs 2)) = `) 
+
+
+    >> ` rs 1 * (rs 2 + 1) * (FACT (rs 0 + rs 2) DIV FACT (rs 2 + 1)) = rs 1 * (FACT (rs 0 + rs 2) DIV FACT (rs 2))`
+    suffices_by rw[FUN_EQ_THM, APPLY_UPDATE_THM, APPLY_UPDATE_ID] >> rw[] >> fs[]
+    `rs 1 * (FACT (rs 0 + rs 2) DIV FACT (rs 2)) =rs 1 * (rs 2 + 1) * (FACT (rs 0 + rs 2) DIV FACT (rs 2 + 1)) ` by simp[]>>  Cases_on `1 = x` >> fs[]
+    >> `rs 0 = SUC v` by simp[] >> fs[] >> fs[ADD1]
+    >> `rs2 + 1 = SUC rs2` by simp[ADD1] >> fs[] `0 = rs 3` by simp[]
+    >> `FACT (rs 2 + 1) =(rs 2 + 1) * FACT (rs 2) ` by simp[FACT, ADD1]
+
+
+    
+    >> rw[APPLY_UPDATE_THM, APPLY_UPDATE_ID, ADD1, FACT, UPDATE_APPLY, UPDATE_APPLY_ID, UPDATE_APPLY_IMP_ID]
+
+    >> rw[SimpLHS, Ntimes WHILE 2, run_machine_1_def, APPLY_UPDATE_THM, fac_loop1, fac_loop2]
+    >> rw[factorial_def]
+    >> rw[APPLY_UPDATE_THM, APPLY_UPDATE_ID, ADD1, FACT]
 QED
 
 Theorem fac_correct:
