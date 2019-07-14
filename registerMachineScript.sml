@@ -34,7 +34,7 @@ val _ = Datatype‘
     tf : state -> action ;
     q0 : state ;
     In : reg list ;
-    Out : reg ;
+    Out : reg 
   |>
 ’;
 
@@ -915,6 +915,7 @@ Proof
       simp[FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
 QED
 
+(*
 Theorem fac_loop:
   ((rs 4 = 0) ∧ (rs 3 = 0)) 
   ⇒
@@ -1042,7 +1043,6 @@ Proof
     >> rw[APPLY_UPDATE_THM]
 QED
 
-
 Theorem exp_correct:
   ∀a b. RUN exponential [a;b;1] = a ** b 
 Proof
@@ -1063,6 +1063,9 @@ Proof
     >> `rs0 0 = SUC v` by simp[] >> fs[]
     >> rw[EXP]
 QED
+
+*)
+
 
 
 
@@ -1206,6 +1209,7 @@ End
 
 val add1 = EVAL``RUN add1 [5]``;
 
+(*
 
 val pr0 = EVAL ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [0;2]``;
 val pr1' = teval 1000 ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [3;2]``;
@@ -1250,6 +1254,7 @@ val Cn_def = Define `
     in 
       link_all mix' with In := MAP (npair 0) (GENLIST I isz)
 `;
+*)
 
 (* 
    ---------------------------------- 
@@ -1257,12 +1262,11 @@ val Cn_def = Define `
    ----------------------------------
 *)
 
-
+(*
 Definition Mu_def:
 
 End
-
-
+*)
 
 
 
@@ -1334,11 +1338,5 @@ Proof
 QED
 *)
 
-(*
-
-Report:
-  2. call theorem or lemma
-  3. to describe the theorem, using words or math format
- *)
 
 val _ = export_theory ()
