@@ -265,12 +265,14 @@ val mrInst_def = Define `
   |>
 `;
 
+(*
 val test_mrInst_add = EVAL``RUN (mrInst 3 addition) [15; 26]``;
 
 val test_mrInst_constr = EVAL ``mrInst 3 addition``;
 
 val test_mrInst_add2 = EVAL 
   ``run_machine (mrInst 3 addition) (init_machine (mrInst 3 addition) [15; 26])``;
+*)
 
 val sInst_def = Define `
   (sInst mnum (Inc r sopt) = Inc r (OPTION_MAP (npair mnum) sopt))
@@ -297,9 +299,11 @@ val msInst_def = Define `
   |>
 `;
 
+(*
 val test_msInst_RUN = EVAL``RUN (msInst 3 addition) [15; 26]``;
 
 val test_msInst_add = teval 1000 ``(msInst 2 addition)``;
+*)
 
 val upd_def = Define `
   (upd NONE d = SOME d) 
@@ -413,6 +417,7 @@ Proof
   gen_tac >> 
   rw[Abbr`r`, Abbr`m`, Abbr`gd`] >> 
   Induct_on `rs0 2` >>
+  rw[Once WHILE, run_machine_1_def, APPLY_UPDATE_THM]
   rw[Ntimes whileTheory.WHILE 2, run_machine_1_def, combinTheory.APPLY_UPDATE_THM] 
 QED
 
@@ -560,8 +565,9 @@ QED
 (* swapping r1 and r2 for multiplication part can make the machine faster *)
 Definition exponential_def:
   exponential  = <|
-    Q := {1;2;3;4;5;6;7;8;9;10;11;12;13};
+    Q := {1;2;3;4;5;6;7;8;9;10;11;12;13;14};
     tf := (λs. case s of 
+            | 14 => Inc 2 (SOME 1)
             | 1 => Dec 0 (SOME 2) NONE
             | 2 => Dec 1 (SOME 3) (SOME 9)
             | 3 => Inc 5 (SOME 4)
@@ -576,23 +582,24 @@ Definition exponential_def:
             | 12 => Dec 3 (SOME 13) (SOME 1)
             | 13 => Inc 2 (SOME 12)
             );
-    q0 := 1;
-    In := [1;0;2];
+    q0 := 14;
+    In := [1;0];
     Out := 2;
   |>
 End
 
-val exp_t1 = EVAL``RUN exponential [2;3;1]``
+val exp_t1 = EVAL``RUN exponential [3;3]``
 
 
 Theorem exp_facts[simp]:
-  (exponential.In = [1; 0; 2]) ∧
+  (exponential.In = [1; 0]) ∧
   (exponential.Out = 2) ∧
-  (exponential.q0 = 1) ∧
-  (exponential.Q = {1;2;3;4;5;6;7;8;9;10;11;12;13}) ∧
+  (exponential.q0 = 14) ∧
+  (exponential.Q = {1;2;3;4;5;6;7;8;9;10;11;12;13;14}) ∧
   (exponential.tf 1 = Dec 0 (SOME 2) NONE) ∧
   (exponential.tf 2 = Dec 1 (SOME 3) (SOME 9)) ∧
-  (exponential.tf 3 = Inc 5 (SOME 4))
+  (exponential.tf 3 = Inc 5 (SOME 4)) ∧
+  (exponential.tf 14 = Inc 2 (SOME 1))
 Proof
   simp[exponential_def]
 QED
@@ -749,13 +756,14 @@ Proof
 QED
 
 Theorem exp_correct:
-  ∀a b. RUN exponential [a;b;1] = a ** b 
+  ∀a b. RUN exponential [a;b] = a ** b 
 Proof
-  rw[init_machine_def, run_machine_def, RUN_def] >>
+  rw[init_machine_def, run_machine_def, RUN_def, findi_def] >> 
+  rw[Once WHILE, run_machine_1_def] >>
   qmatch_abbrev_tac `FST (WHILE gd (r m) init) 2 = a ** b` >>
   `∀rs0. ((rs0 4 = 0) ∧ (rs0 3 = 0) ∧ (rs0 5 = 0)) ⇒
      (FST (WHILE gd (r m) (rs0, SOME 1)) 2 = (rs0 1 ** rs0 0) * rs0 2)`
-     suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >> rw[] >> 
+     suffices_by rw[Abbr`init`, APPLY_UPDATE_THM, findi_def] >> rw[] >> 
   Induct_on `rs0 0` 
     >- (rw[exponential_def, Ntimes whileTheory.WHILE 2, Abbr`gd`, Abbr`r`, Abbr`m`, run_machine_1_def] >>
         `rs0 0 = 0` by simp[] >> fs[])
@@ -915,158 +923,33 @@ Proof
       simp[FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
 QED
 
-(*
-Theorem fac_loop:
-  ((rs 4 = 0) ∧ (rs 3 = 0)) 
-  ⇒
-  (WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 factorial) (rs, SOME 1) 
-  = (rs (| 0 |-> 0;
-           1 |-> FACT (rs 2 + rs 0); 
-           2 |-> rs 0 + rs 2|) 
-     , NONE) )
-Proof
-  Induct_on `rs 0` >> rw[] 
-    >- (rw[APPLY_UPDATE_THM, factorial_def, Ntimes whileTheory.WHILE 2, run_machine_1_def] >>
-        `rs 0 = 0` by simp[] >> fs[] >> 
-         rw[APPLY_UPDATE_ID, DIVMOD_ID, FACT_LESS] >>
-         rw[FUN_EQ_THM, APPLY_UPDATE_THM] >> Cases_on `x` >> simp[]
-        )
-    >> rw[Once WHILE, run_machine_1_def]
-    >> rw[Once WHILE, run_machine_1_def]
-    >> rw[APPLY_UPDATE_THM, fac_loop1]
-    >> rw[APPLY_UPDATE_THM, fac_loop2]
-
-    >> rw[FUN_EQ_THM, APPLY_UPDATE_THM]
-    >> Cases_on `x` >> simp[]  
-       >> Cases_on `n` 
-          >- (simp[] >> `rs 0 = SUC v` by simp[] >> fs[] >>
-              `rs 2 + SUC v = rs 2 + v + 1` by simp[] >> rw[] >>
-
-              rw[FACT, DIVMOD_ID, numeral_fact] >> 
-              `FACT (SUC (rs 2)) = `) 
-
-
-    >> ` rs 1 * (rs 2 + 1) * (FACT (rs 0 + rs 2) DIV FACT (rs 2 + 1)) = rs 1 * (FACT (rs 0 + rs 2) DIV FACT (rs 2))`
-    suffices_by rw[FUN_EQ_THM, APPLY_UPDATE_THM, APPLY_UPDATE_ID] >> rw[] >> fs[]
-    `rs 1 * (FACT (rs 0 + rs 2) DIV FACT (rs 2)) =rs 1 * (rs 2 + 1) * (FACT (rs 0 + rs 2) DIV FACT (rs 2 + 1)) ` by simp[]>>  Cases_on `1 = x` >> fs[]
-    >> `rs 0 = SUC v` by simp[] >> fs[] >> fs[ADD1]
-    >> `rs2 + 1 = SUC rs2` by simp[ADD1] >> fs[] `0 = rs 3` by simp[]
-    >> `FACT (rs 2 + 1) =(rs 2 + 1) * FACT (rs 2) ` by simp[FACT, ADD1]
-
-
-    
-    >> rw[APPLY_UPDATE_THM, APPLY_UPDATE_ID, ADD1, FACT, UPDATE_APPLY, UPDATE_APPLY_ID, UPDATE_APPLY_IMP_ID]
-
-    >> rw[SimpLHS, Ntimes WHILE 2, run_machine_1_def, APPLY_UPDATE_THM, fac_loop1, fac_loop2]
-    >> rw[factorial_def]
-    >> rw[APPLY_UPDATE_THM, APPLY_UPDATE_ID, ADD1, FACT]
-QED
 
 Theorem fac_correct:
   ∀a. RUN factorial [a] = FACT a 
 Proof
-  rw[RUN_def, run_machine_def, init_machine_def] >>
-  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 1 = _` >>
-  `∀rs0. ((rs0 4 = 0) ∧ (rs0 3 = 0) ∧ (rs0 1 = 0) ∧ (rs0 2 = 0)) ⇒
-     (FST (WHILE gd (r m) (rs0, SOME 0)) 1 = FACT (rs0 0))`
-     suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
-  rw[Abbr`r`, Abbr`m`, Abbr`gd`] >> 
-  Induct_on `rs0 0` >> rw[Once WHILE, run_machine_1_def]
-    >- (rw[APPLY_UPDATE_THM, factorial_def, Ntimes whileTheory.WHILE 2, run_machine_1_def] >>
-        `rs0 0 = 0` by simp[] >> fs[] >> rw[numeralTheory.numeral_fact])
-    >> fs[Once WHILE, run_machine_1_def, APPLY_UPDATE_THM]
-    >> fs[Once WHILE, run_machine_1_def, APPLY_UPDATE_THM]
-    >> rw[APPLY_UPDATE_THM, fac_loop1]
-    >> rw[APPLY_UPDATE_THM, fac_loop2]
-    >> `rs0 0 = SUC v` by simp[] >> fs[]
-    >> rw[Once WHILE, run_machine_1_def, APPLY_UPDATE_THM]
-    >> Cases_on `v` 
-        >- (simp[] >> rw[Once WHILE, run_machine_1_def] >> rw[numeral_fact, APPLY_UPDATE_THM])
-        >> simp[] >> rw[]
-
-        >> rw[Ntimes WHILE 2, run_machine_1_def, APPLY_UPDATE_THM, fac_loop1, fac_loop2]
-    >> rw[APPLY_UPDATE_THM, fac_loop1]
-    >> rw[APPLY_UPDATE_THM, fac_loop2]
-    >> `rs0 0 = SUC v` by simp[] >> fs[]
-    >> rw[APPLY_UPDATE_THM]
-    >>
-QED
-
-
-
-Theorem fac_correct:
-  ∀a. RUN factorial [a] = FACT a 
-Proof
-  rw[RUN_def, run_machine_def, init_machine_def] >>
-  rw[Once WHILE, run_machine_1_def, findi_def] >>
-  rw[Once WHILE, run_machine_1_def] 
-  >- (rw[Once WHILE, run_machine_1_def, factorial_def, APPLY_UPDATE_THM]
-    >> rw[APPLY_UPDATE_THM, factorial_def, Ntimes whileTheory.WHILE 2, run_machine_1_def])
-  >>
-
- qmatch_abbrev_tac `FST (WHILE gd (r m) init) 1 = _` >>
-  `∀rs0. ((rs0 4 = 0) ∧ (rs0 3 = 0)) ⇒
-     (FST (WHILE gd (r m) (rs0, SOME 1)) 1 = (rs0 1) * FACT (rs0 0 + rs0 2))`
-     suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
-  Induct_on `rs0 0` 
-    >- (rw[Once WHILE, run_machine_1_def, factorial_def, APPLY_UPDATE_THM]rw[APPLY_UPDATE_THM, factorial_def, Ntimes whileTheory.WHILE 2, run_machine_1_def] >>
-        `rs0 0 = 0` by simp[] >> fs[] >> rw[numeralTheory.numeral_fact])
-    >> rw[]
-    >> rw[Ntimes WHILE 2, run_machine_1_def, APPLY_UPDATE_THM, fac_loop1, fac_loop2]
-    >> `rs0 0 = SUC v` by simp[] >> fs[]
-    >> rw[FACT] >> simp[ADD1] 
-    >> rw[APPLY_UPDATE_THM]
-QED
-
-
-Theorem fac_correct:
-  ∀a. RUN factorial [a] = FACT a 
-Proof
-  rw[RUN_def, run_machine_def, init_machine_def] >>
-  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 1 = _` >>
-  `∀rs0. ((rs0 4 = 0) ∧ (rs0 3 = 0) ∧ (rs0 1 = 0) ∧ (rs0 2 = 0)) ⇒
-     (FST (WHILE gd (r m) (rs0 , SOME 0)) 1 = FACT (rs0 0))`
-     suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
-  `∀rs0. ((rs0 4 = 0) ∧ (rs0 3 = 0) ∧ (rs0 1 = 0)) ⇒
-     (FST (WHILE gd (r m) (rs0 (|1 |-> rs0 1 + 1 |), SOME 1)) 1 = (rs0 1) * )`
-     suffices_by (rw[Abbr`r`, Abbr`m`, Abbr`gd`] >> rw[Once WHILE, run_machine_1_def]) >>
-  rw[] >> 
+  rw[RUN_def, run_machine_def, init_machine_def, findi_def] >>
+  rw[Once WHILE, run_machine_1_def] >>
+  qmatch_abbrev_tac `FST (WHILE gd (r m) (init, SOME 1)) 1 = _` >>
+  `∀rs0. ((rs0 4 = 0) ∧ (rs0 3 = 0) ∧ (rs0 1 = FACT (rs0 2))) ⇒
+     (FST (WHILE gd (r m) (rs0 , SOME 1)) 1 = FACT (rs0 0 + rs0 2))`
+     suffices_by rw[Abbr`init`, APPLY_UPDATE_THM, FACT] >>
+  rw[] >>
   Induct_on `rs0 0` >> rw[Abbr`r`, Abbr`m`, Abbr`gd`]
     >- (rw[APPLY_UPDATE_THM, factorial_def, Ntimes whileTheory.WHILE 2, run_machine_1_def] >>
-        `rs0 0 = 0` by simp[] >> fs[] >> rw[numeralTheory.numeral_fact])
-    >> `rs0 (| 1 |-> 1 |) 0 = rs0 0` by simp[APPLY_UPDATE_THM] >> fs[]
+        `rs0 0 = 0` by simp[] >> fs[] >> rw[numeralTheory.numeral_fact]
+        >>rw[Once WHILE, run_machine_1_def] >> rw[APPLY_UPDATE_THM])
     >> rw[Once WHILE, run_machine_1_def]
     >> rw[Once WHILE, run_machine_1_def]
     >> rw[APPLY_UPDATE_THM, fac_loop1]
     >> rw[APPLY_UPDATE_THM, fac_loop2]
     >> `rs0 0 = SUC v` by simp[] >> fs[]
+    >> qmatch_abbrev_tac `FST (WHILE _ _ (ss, SOME 1)) 1 = _`
+    >> first_x_assum (qspec_then `ss` mp_tac)
+    >> simp[Abbr`ss`, APPLY_UPDATE_THM]
+    >> simp[GSYM ADD1, FACT]
     >> rw[APPLY_UPDATE_THM]
+    >> rw[ADD1]
 QED
-
-Theorem exp_correct:
-  ∀a b. RUN exponential [a;b;1] = a ** b 
-Proof
-  rw[init_machine_def, run_machine_def, RUN_def] >>
-  qmatch_abbrev_tac `FST (WHILE gd (r m) init) 2 = a ** b` >>
-  `∀rs0. ((rs0 4 = 0) ∧ (rs0 3 = 0) ∧ (rs0 5 = 0)) ⇒
-     (FST (WHILE gd (r m) (rs0, SOME 1)) 2 = (rs0 1 ** rs0 0) * rs0 2)`
-     suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >> rw[] >> 
-  Induct_on `rs0 0` 
-    >- (rw[exponential_def, Ntimes whileTheory.WHILE 2, Abbr`gd`, Abbr`r`, Abbr`m`, run_machine_1_def] >>
-        `rs0 0 = 0` by simp[] >> fs[])
-    >> rw[]
-    >> rw[Once whileTheory.WHILE, run_machine_1_def, Abbr`gd`, Abbr`r`, Abbr`m`]
-    >> rw[APPLY_UPDATE_THM, exp_loop1]
-    >> rw[APPLY_UPDATE_THM, exp_loop2]
-    >> rw[APPLY_UPDATE_THM, exp_loop3]
-    >> rw[APPLY_UPDATE_THM, exp_loop4]
-    >> `rs0 0 = SUC v` by simp[] >> fs[]
-    >> rw[EXP]
-QED
-
-*)
-
-
 
 
 (* 
@@ -1164,6 +1047,10 @@ Definition guard:
   |>
 End
 
+
+val test_plink = EVAL``RUN (plink guard add1) [0]``;
+
+
 Definition count:
   count = <|
     Q:= {(npair 0 0)};
@@ -1209,7 +1096,10 @@ End
 
 val add1 = EVAL``RUN add1 [5]``;
 
+
 (*
+
+val pr0 = EVAL ``RUN (Pr (const 1) (add1 with In:=[1;2;0])) [0;2]``;
 
 val pr0 = EVAL ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [0;2]``;
 val pr1' = teval 1000 ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [3;2]``;
@@ -1258,15 +1148,25 @@ val Cn_def = Define `
 
 (* 
    ---------------------------------- 
-   ------         Mu           ------
+   ----  Minimisation Function   ----
    ----------------------------------
 *)
 
-(*
-Definition Mu_def:
 
+Definition Mu_def:
+   Mu f =
+      let 
+        f' = mrInst 1 f
+        count' = count ++ f' 
+        mtf = dup0 Mu.In f'.In (npair 0 1)
+        ftg = dup0 f'.Out guard.In (npair 0 1)
+        guard' = plink (msInst 0 guard) (msInst 1 count)  
+        mix = mtf ++ f' ++ ftg
+        mix' = MAPi (λi m. msInst (i+2) m) mix
+      in 
+        link with In := npair 0 0
 End
-*)
+
 
 
 
@@ -1337,6 +1237,11 @@ Proof
 
 QED
 *)
+
+(*
+TODO 
+02.08 
+Fix Pr *)
 
 
 val _ = export_theory ()
