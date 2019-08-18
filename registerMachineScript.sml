@@ -8,10 +8,12 @@ open numeralTheory;
 val _ = new_theory "registerMachine";
 
 
-val _ = type_abbrev("reg", “:num”);
-val _ = type_abbrev("state", “:num”);
+Type reg = “:num”;
+Type state = “:num”;
 
-val _ = Datatype ` action = Inc num (state option) | Dec num (state option) (state option) `
+Datatype:
+  action = Inc num (state option) | Dec num (state option) (state option) 
+End
 
 
 (* 
@@ -28,7 +30,7 @@ val _ = Datatype ` action = Inc num (state option) | Dec num (state option) (sta
     I : reg list (input regs);
     O : reg (output register);
 *)
-val _ = Datatype‘
+Datatype:
   rm = <|
     Q : state set; 
     tf : state -> action ;
@@ -36,7 +38,7 @@ val _ = Datatype‘
     In : reg list ;
     Out : reg 
   |>
-’;
+End
 
 (* Initialise *)
 val init_machine_def = Define `
@@ -113,7 +115,7 @@ val const_def = Define `
     (const 0 = 
     <|
        Q := {1} ;
-       tf := K $ Inc 0 NONE;
+       tf := (λs. Inc 0 NONE);
        q0 := 1 ; 
        In := [0] ;
        Out := 1 ;
@@ -134,7 +136,7 @@ val const_def = Define `
        let m = const n
      in 
       (<|
-         Q  := {s | (s = SUC n) ∨ s IN m.Q} ;
+         Q  := {SUC n} ∪ m.Q ;
          tf := m.tf (| SUC n |-> Inc 1 (SOME n) |) ;
          q0 := SUC n ;
          In := [0] ;
@@ -281,6 +283,7 @@ val sInst_def = Define `
       Dec r (OPTION_MAP (npair mnum) sopt1) (OPTION_MAP (npair mnum) sopt2))
 `;
 
+
 fun teval n t = 
   let 
     val i = ref n
@@ -288,6 +291,7 @@ fun teval n t =
   in
     with_flag (computeLib.stoppers, SOME stop) (computeLib.WEAK_CBV_CONV computeLib.the_compset) t
   end;
+
 
 val msInst_def = Define `
   msInst mnum m = <|
@@ -347,7 +351,7 @@ val link_all_def = Define`
 `;
 
 
-
+(*
 val test_lka = EVAL``link_all [(mrInst 1 (msInst 1 identity)); (mrInst 2 (msInst 2 identity))]``;
 
 val test_link_out = EVAL ``RUN (link_all [identity;identity2]) [5]``;
@@ -382,6 +386,7 @@ val test_1 = computeLib.RESTR_EVAL_CONV [``$o``] `` let m = MAPi (λi m. (mrInst
                  link_all mix``;
 
 val _ = computeLib.set_skip computeLib.the_compset ``COND`` (SOME 1);
+*)
 
 (* 
    -------------------------------------------------------------   
@@ -417,7 +422,6 @@ Proof
   gen_tac >> 
   rw[Abbr`r`, Abbr`m`, Abbr`gd`] >> 
   Induct_on `rs0 2` >>
-  rw[Once WHILE, run_machine_1_def, APPLY_UPDATE_THM]
   rw[Ntimes whileTheory.WHILE 2, run_machine_1_def, combinTheory.APPLY_UPDATE_THM] 
 QED
 
@@ -1005,7 +1009,7 @@ val test_Cn_add = EVAL ``RUN (Cn addition [addition; addition]) [2;2]``;
    ----------------------------------
 *)
 
-
+(*
 val end_plink_def = Define `
   (end_plink (Inc q d0) d = Inc q (upd d0 d))
     ∧
@@ -1018,8 +1022,9 @@ val plinktf_def = Define`
      if s ∈ m1Q then end_plink (tf1 s) m2init
      else tf2 s
 `;
-
+*)
 (* Partial link - only links state option 1 of m1 to m2 *)
+(*
 Definition plink:
   plink m1 m2 = <|
     Q := m1.Q ∪ m2.Q;
@@ -1031,12 +1036,24 @@ Definition plink:
 End
 
 
+
+val loop_def = Define`
+  loop m = <|
+    Q := m.Q;
+    tf := (λs. end_link (m.tf s) m.q0);
+    q0 := m.q0;
+    In := m.In;
+    Out := m.Out;
+  |>
+`;
+*)
 (* Pr.In is in the form of ``accumulator :: counter :: limit :: inputs``.
    base: machine which computes the base case of the premitive recursion.
    step  : the recursive step which checks the guard then perform action
      followed by recursive call
    *)
 
+(*
 Definition guard:
   guard = <|
     Q:= {(npair 0 2)};
@@ -1046,9 +1063,21 @@ Definition guard:
     Out := (npair 0 2);
   |>
 End
+*)
+
+Definition loopguard:
+  loopguard guard step = <|
+    Q:= {npair 0 2} ∪ step.Q;
+    tf := (λs. if s=(npair 0 2) then (Dec guard (SOME step.q0) NONE)
+                else end_link (step.tf s) (npair 0 2));
+    q0 := (npair 0 2);
+    In := [guard] ++ step.In;
+    Out := step.Out;
+  |>
+End
 
 
-val test_plink = EVAL``RUN (plink guard add1) [0]``;
+(*val test_plink = EVAL``RUN (plink guard add1) [0]``;*)
 
 
 Definition count:
@@ -1061,6 +1090,35 @@ Definition count:
   |>
 End
 
+(*
+Definition Pr_def:
+  Pr base step = 
+      let base' = mrInst 2 base;
+          step' = mrInst 3 step;
+          bi    = LENGTH base.In;
+          si    = LENGTH step.In;
+          ptb   = MAPi (λi r. dup0 (npair 0 (i+3)) r (npair 1 0)) base'.In; 
+          btp   = dup0 base'.Out (npair 0 1) (npair 1 0) ;
+          pts0  = dup0 (npair 0 0) (EL 0 step'.In) (npair 1 0);
+          pts1  = dup0 (npair 0 1) (EL 1 step'.In) (npair 1 0);
+          pts   = MAPi (λi r. dup0 (npair 0 (i+3)) r (npair 1 0)) (DROP 2 step'.In);
+          stp   = dup0 step'.Out (npair 0 1) (npair 1 0);
+          pts0'  = msInst (bi+3) pts0;
+          guard' = plink guard pts0';
+          stp'   = msInst (bi+7+si) stp;
+          mix1   = ptb ++ [base'] ++ [btp];
+          mix2   = [pts1] ++ pts ++ [step'] ++ [count];
+          mix1'  = MAPi (λi m. msInst (i+1) m) mix1;
+          mix2'  = MAPi (λi m. msInst (bi+4+i) m) mix2;
+          mix2'' = [guard'] ++ mix2' ++ [stp'];
+          link2  = link_all mix2;
+          loop2  = loop link2 ;
+          mix    = mix1' ++ [loop2] ;
+    in 
+      link_all mix with In := MAP (λr. npair 0 (r+2)) (GENLIST I $ LENGTH base.In + 1)
+End
+*)
+
 Definition Pr_def:
   Pr base step = 
       let base' = mrInst 2 base;
@@ -1071,15 +1129,15 @@ Definition Pr_def:
           pts1  = dup0 (npair 0 1) (EL 1 step'.In) (npair 1 0);
           pts   = MAPi (λi r. dup0 (npair 0 (i+3)) r (npair 1 0)) (DROP 2 step'.In);
           stp   = dup0 step'.Out (npair 0 1) (npair 1 0);
-          pts0'  = msInst 1 pts0;
-          guard' = plink guard pts0';
-          stp'   = msInst 2 stp;
           mix1   = ptb ++ [base'] ++ [btp];
-          mix2   = [pts1] ++ pts ++ [step'] ++ [count];
-          mix1'  = MAPi (λi m. msInst (i+3) m) mix1;
-          mix2'  = MAPi (λi m. msInst (LENGTH mix1 + i + 3) m) mix2;
-          stp''  = link stp' guard' ;
-          mix    = mix1'++[guard']++mix2'++[stp''];
+          mix2   = pts0::pts1::pts ++ [step'] ++ [count] ++ [stp];
+          mix1'  = MAPi (λi m. msInst (i+1) m) mix1;
+          mix1'' = MAP (msInst 2) mix1';
+          mix2'  = MAPi (λi m. msInst (i+1) m) mix2;
+          mix2'' = MAP (msInst 3) mix2';
+          m2     = link_all mix2'';
+          m2'  = loopguard (npair 0 2) m2;
+          mix  = mix1''++[m2'];
     in 
       link_all mix with In := MAP (λr. npair 0 (r+2)) (GENLIST I $ LENGTH base.In + 1)
 End
@@ -1095,15 +1153,17 @@ Definition add1:
 End
 
 val add1 = EVAL``RUN add1 [5]``;
+val add1' = EVAL``RUN (add1 with In:=[3;0;1]) [1;8;3]``;
 
 
-(*
+val pr_add1_e = teval 25000``RUN (Pr (const 1) (add1 with In:=[3;0;1])) [3;2]``;
 
-val pr0 = EVAL ``RUN (Pr (const 1) (add1 with In:=[1;2;0])) [0;2]``;
+val pr_add1_E = EVAL``RUN (Pr (const 1) (add1 with In:=[3;0;1])) [3;2]``;
 
 val pr0 = EVAL ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [0;2]``;
-val pr1' = teval 1000 ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [3;2]``;
+
 val pr1 = EVAL ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [3;2]``;
+
 
 
 RUN (Pr base step) [...] 
@@ -1131,20 +1191,7 @@ counter+1
 stp = copy step.out acc
 guard
 
-val Cn_def = Define `
-  Cn m ms = 
-    let isz = LENGTH (HD ms).In;
-        mms = MAPi (λi mm. mrInst (i+2) mm) (m::ms);
-        m'  = HD mms;
-        ms' = TL mms;
-        ics = FLAT (MAP (λmm. MAPi (λi r. dup0 (npair 0 i) r (npair 1 0)) mm.In) ms');
-        ocs = MAPi (λi mm. dup0 mm.Out (EL i m'.In) (npair 1 0)) ms';
-        mix = ics++ms'++ocs++[m'];
-        mix' = MAPi msInst mix;
-    in 
-      link_all mix' with In := MAP (npair 0) (GENLIST I isz)
-`;
-*)
+
 
 (* 
    ---------------------------------- 
@@ -1240,8 +1287,8 @@ QED
 
 (*
 TODO 
-02.08 
-Fix Pr *)
+
+ *)
 
 
 val _ = export_theory ()
