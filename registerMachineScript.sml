@@ -111,41 +111,39 @@ val wfad = EVAL ``wfrm addition``
 *)
 
 (* Returns the given constant by putting it in register 0 *)
-val const_def = Define `
-    (const 0 = 
-    <|
+Definition const_def:
+  const n =
+    if n = 0 then  <|
        Q := {1} ;
        tf := (λs. Inc 0 NONE);
        q0 := 1 ; 
        In := [0] ;
        Out := 1 ;
-    |>)
-  ∧
-    (const (SUC 0) = 
-    <|
-       Q := {1} ;
-       tf := (λn. case n of 
+    |>
+    else 
+      if n = 1 then <|
+         Q := {1} ;
+         tf := (λn. case n of 
                 | 1 => Inc 1 NONE
               );
-       q0 := 1 ;
-       In := [0] ;
-       Out := 1 ;
-    |>) 
-  ∧ 
-    (const (SUC n) =
-       let m = const n
-     in 
-      (<|
-         Q  := {SUC n} ∪ m.Q ;
-         tf := m.tf (| SUC n |-> Inc 1 (SOME n) |) ;
-         q0 := SUC n ;
+         q0 := 1 ;
          In := [0] ;
          Out := 1 ;
-      |>)
-      )
-`;
+        |>
+    else let m = const (n-1)
+     in 
+      <|
+         Q  := {n} ∪ m.Q ;
+         tf := m.tf (| n |-> Inc 1 (SOME (n-1)) |) ;
+         q0 := n ;
+         In := [0] ;
+         Out := 1 ;
+      |>
+End
 
-(*val test_const = EVAL ``RUN (const 1) [10]``;*)
+val test_const = EVAL ``RUN (const 0) [10]``;
+val test_const2 = EVAL ``RUN (const 1) [10]``;
+val test_const3 = EVAL ``RUN (const 10) [10]``;
 
 val identity_def = Define `
   identity = <|
@@ -384,9 +382,10 @@ val test_1 = computeLib.RESTR_EVAL_CONV [``$o``] `` let m = MAPi (λi m. (mrInst
                                  mix = MAPi msInst [HD m ; dup ; LAST m]
                in 
                  link_all mix``;
+*)
 
 val _ = computeLib.set_skip computeLib.the_compset ``COND`` (SOME 1);
-*)
+
 
 (* 
    -------------------------------------------------------------   
@@ -1076,9 +1075,7 @@ Definition loopguard:
   |>
 End
 
-
-(*val test_plink = EVAL``RUN (plink guard add1) [0]``;*)
-
+val lpg = EVAL``loopguard (npair 0 2) ``;
 
 Definition count:
   count = <|
@@ -1090,34 +1087,13 @@ Definition count:
   |>
 End
 
-(*
-Definition Pr_def:
-  Pr base step = 
-      let base' = mrInst 2 base;
-          step' = mrInst 3 step;
-          bi    = LENGTH base.In;
-          si    = LENGTH step.In;
-          ptb   = MAPi (λi r. dup0 (npair 0 (i+3)) r (npair 1 0)) base'.In; 
-          btp   = dup0 base'.Out (npair 0 1) (npair 1 0) ;
-          pts0  = dup0 (npair 0 0) (EL 0 step'.In) (npair 1 0);
-          pts1  = dup0 (npair 0 1) (EL 1 step'.In) (npair 1 0);
-          pts   = MAPi (λi r. dup0 (npair 0 (i+3)) r (npair 1 0)) (DROP 2 step'.In);
-          stp   = dup0 step'.Out (npair 0 1) (npair 1 0);
-          pts0'  = msInst (bi+3) pts0;
-          guard' = plink guard pts0';
-          stp'   = msInst (bi+7+si) stp;
-          mix1   = ptb ++ [base'] ++ [btp];
-          mix2   = [pts1] ++ pts ++ [step'] ++ [count];
-          mix1'  = MAPi (λi m. msInst (i+1) m) mix1;
-          mix2'  = MAPi (λi m. msInst (bi+4+i) m) mix2;
-          mix2'' = [guard'] ++ mix2' ++ [stp'];
-          link2  = link_all mix2;
-          loop2  = loop link2 ;
-          mix    = mix1' ++ [loop2] ;
-    in 
-      link_all mix with In := MAP (λr. npair 0 (r+2)) (GENLIST I $ LENGTH base.In + 1)
-End
-*)
+(0,0) counter
+(0,1) acc
+(0,2) guard
+
+Pr guard [i1...in]
+base [i1...in]
+step counter acc [i1...in]
 
 Definition Pr_def:
   Pr base step = 
@@ -1142,12 +1118,20 @@ Definition Pr_def:
       link_all mix with In := MAP (λr. npair 0 (r+2)) (GENLIST I $ LENGTH base.In + 1)
 End
 
+Definition new_base :
+  new_base base = 
+      let base' = mrInst 2 base 
+     in MAPi (λi r. dup0 (npair 0 (i+3)) r (npair 1 0)) base'.In
+End
+
+val base = EVAL``new_base (const 1)``;
+
 Definition add1:
   add1 = <|
     Q:={0};
     tf:=(λs. Inc 0 NONE);
     q0:=0;
-    In:=[0];
+    In:=[3;0;1];
     Out:=0;
   |>
 End
@@ -1156,25 +1140,18 @@ val add1 = EVAL``RUN add1 [5]``;
 val add1' = EVAL``RUN (add1 with In:=[3;0;1]) [1;8;3]``;
 
 
-val pr_add1_e = teval 25000``RUN (Pr (const 1) (add1 with In:=[3;0;1])) [3;2]``;
+val machine =EVAL ``Pr identity add1``;
 
-val pr_add1_E = EVAL``RUN (Pr (const 1) (add1 with In:=[3;0;1])) [3;2]``;
+val pr_add1_E = EVAL``RUN (Pr identity (identity with In:=[1;0;2])) [3;1]``;
 
-val pr0 = EVAL ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [0;2]``;
+val pr0 = EVAL ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [1;2]``;
 
 val pr1 = EVAL ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [3;2]``;
-
+ 
 
 
 RUN (Pr base step) [...] 
 
-(0,0) counter
-(0,1) acc
-(0,2) guard
-
-Pr guard [i1...in]
-base [i1...in]
-step counter acc [i1...in]
 
 ptb = copy inputs base.register 
 base
