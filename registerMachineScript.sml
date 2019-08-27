@@ -160,6 +160,19 @@ val identity_def = Define `
 
 val test_iden = EVAL ``RUN identity [5; 6]``;
 
+val identity'_def = Define `
+  identity' = <|
+  Q := {0;1};
+  tf := (λs. case s of 
+                | 0 => Inc 0 (SOME 1)
+                | 1 => Dec 0 NONE NONE
+        );
+  q0 := 0;
+  In := [1;0;2];
+  Out := 0;
+  |>
+`;
+
 val identity2_def = Define `
   identity2 = <|
   Q := {10;11};
@@ -184,6 +197,16 @@ val empty_def = Define `
 `;
 
 val empty_lemma = EVAL `` run_machine empty (init_machine empty [3])``
+
+val empty'_def = Define `
+  empty' m = <| 
+      Q := {0} ; 
+      tf := (λn. Dec m (SOME 0) NONE) ;
+      q0 := 0;
+      In := [m] ;
+      Out := m ;
+  |>
+`;
 
 val transfer_def = Define `
   transfer = <| 
@@ -247,7 +270,24 @@ val dup0_def = Define `
   |>
 `;
 
-val test_dup0 = EVAL ``RUN (dup0 14 15 0) [27]``;
+val dup_def = Define `
+  dup r1 r2 r3= <| 
+    Q := {0;1;2;3;4;5};
+    tf := (λs. case s of 
+            | 0 => Dec r2 (SOME 0) (SOME 1)
+            | 1 => Dec r1 (SOME 2) (SOME 4)
+            | 2 => Inc r2 (SOME 3)
+            | 3 => Inc r3 (SOME 1) 
+            | 4 => Dec r3 (SOME 5) NONE
+            | 5 => Inc r1 (SOME 4)
+            );
+    q0 := 0;
+    In := [r1];
+    Out := r2;
+  |>
+`;
+
+val test_dup = EVAL ``RUN (dup 14 15 0) [27]``;
 
 val rInst_def = Define `
   (rInst mnum (Inc r sopt) = Inc (npair mnum r) sopt)
@@ -1087,6 +1127,7 @@ Definition count:
   |>
 End
 
+(*
 (0,0) counter
 (0,1) acc
 (0,2) guard
@@ -1094,17 +1135,18 @@ End
 Pr guard [i1...in]
 base [i1...in]
 step counter acc [i1...in]
+*)
 
 Definition Pr_def:
   Pr base step = 
       let base' = mrInst 2 base;
           step' = mrInst 3 step;
-          ptb   = MAPi (λi r. dup0 (npair 0 (i+3)) r (npair 1 0)) base'.In; 
-          btp   = dup0 base'.Out (npair 0 1) (npair 1 0) ;
-          pts0  = dup0 (npair 0 0) (EL 0 step'.In) (npair 1 0);
-          pts1  = dup0 (npair 0 1) (EL 1 step'.In) (npair 1 0);
-          pts   = MAPi (λi r. dup0 (npair 0 (i+3)) r (npair 1 0)) (DROP 2 step'.In);
-          stp   = dup0 step'.Out (npair 0 1) (npair 1 0);
+          ptb   = MAPi (λi r. dup (npair 0 (i+3)) r (npair 1 0)) base'.In; 
+          btp   = dup base'.Out (npair 0 1) (npair 1 0) ;
+          pts0  = dup (npair 0 0) (EL 0 step'.In) (npair 1 0);
+          pts1  = dup (npair 0 1) (EL 1 step'.In) (npair 1 0);
+          pts   = MAPi (λi r. dup (npair 0 (i+3)) r (npair 1 0)) (DROP 2 step'.In);
+          stp   = dup step'.Out (npair 0 1) (npair 1 0);
           mix1   = ptb ++ [base'] ++ [btp];
           mix2   = pts0::pts1::pts ++ [step'] ++ [count] ++ [stp];
           mix1'  = MAPi (λi m. msInst (i+1) m) mix1;
@@ -1118,6 +1160,7 @@ Definition Pr_def:
       link_all mix with In := MAP (λr. npair 0 (r+2)) (GENLIST I $ LENGTH base.In + 1)
 End
 
+(*
 Definition new_base :
   new_base base = 
       let base' = mrInst 2 base 
@@ -1125,7 +1168,7 @@ Definition new_base :
 End
 
 val base = EVAL``new_base (const 1)``;
-
+*)
 Definition add1:
   add1 = <|
     Q:={0};
@@ -1136,20 +1179,34 @@ Definition add1:
   |>
 End
 
-val add1 = EVAL``RUN add1 [5]``;
-val add1' = EVAL``RUN (add1 with In:=[3;0;1]) [1;8;3]``;
+val add1' = EVAL``RUN add1 [1;100;5]``;
 
 
 val machine =EVAL ``Pr identity add1``;
 
-val pr_add1_E = EVAL``RUN (Pr identity (identity with In:=[1;0;2])) [3;1]``;
+
+val pr_add1_E = EVAL``RUN (Pr identity add1) [5;1]``;
+
+
+val pr_add1_E = EVAL``RUN (Pr identity identity') [5;1]``;
 
 val pr0 = EVAL ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [1;2]``;
 
 val pr1 = EVAL ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [3;2]``;
  
 
+(*
+(0,0) counter
+(0,1) acc
+(0,2) guard
 
+Pr guard [i1...in]
+base [i1...in]
+step counter acc [i1...in]
+*)
+
+
+(*
 RUN (Pr base step) [...] 
 
 
@@ -1168,7 +1225,7 @@ counter+1
 stp = copy step.out acc
 guard
 
-
+*)
 
 (* 
    ---------------------------------- 
