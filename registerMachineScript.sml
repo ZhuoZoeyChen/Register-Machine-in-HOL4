@@ -84,11 +84,6 @@ Definition strip_state:
      | Dec _ so1 so2 => conv so1::[conv so2]
 End
 
-val st = EVAL ``strip_state (Inc 5 (SOME 4))``
-val st2 = EVAL ``strip_state (Inc 5 NONE)``
-val st3 = EVAL ``strip_state (Dec 199 (SOME 4) NONE)``
-val stf = EVAL ``FOLDL (λe s. e ∧ ((s-1 ∈ {1}) ∨ (s = 0))) T st2``
-
 (* Definition of wellformedness of a register machine :
       Has finite states initial state(q0) is in that machine's set of all states(Q),
       and a valid state only transits to a valid state or NONE.
@@ -99,9 +94,6 @@ val wfrm_def = Define `
     m.q0 ∈ m.Q ∧
     (∀s. s ∈ m.Q ⇒ FOLDL (λe s. e ∧ ((s-1 ∈ m.Q) ∨ (s = 0))) T (strip_state $ m.tf s)) 
 `;
-
-val wfep = EVAL ``wfrm empty``
-val wfad = EVAL ``wfrm addition``
 
 
 (* 
@@ -141,9 +133,6 @@ Definition const_def:
       |>
 End
 
-val test_const = EVAL ``RUN (const 0) [10]``;
-val test_const2 = EVAL ``RUN (const 1) [10]``;
-val test_const3 = EVAL ``RUN (const 10) [10]``;
 
 val identity_def = Define `
   identity = <|
@@ -158,7 +147,7 @@ val identity_def = Define `
   |>
 `;
 
-val test_iden = EVAL ``RUN identity [5; 6]``;
+
 
 val identity'_def = Define `
   identity' = <|
@@ -196,8 +185,6 @@ val empty_def = Define `
   |>
 `;
 
-val empty_lemma = EVAL `` run_machine empty (init_machine empty [3])``
-
 val empty'_def = Define `
   empty' m = <| 
       Q := {0} ; 
@@ -221,9 +208,6 @@ val transfer_def = Define `
   |>
 `;
 
-val transfer_lemma = EVAL `` run_machine transfer (init_machine transfer [10])``
-
-
 val double_def = Define `
   double = <|
     Q := {1;2;3};
@@ -237,8 +221,6 @@ val double_def = Define `
     Out := 1;
     |>
   `;
-
-val test_double = EVAL ``RUN double [15]``
 
 (* 
    ---------------------------------- 
@@ -287,7 +269,6 @@ val dup_def = Define `
   |>
 `;
 
-val test_dup = EVAL ``RUN (dup 14 15 0) [27]``;
 
 val rInst_def = Define `
   (rInst mnum (Inc r sopt) = Inc (npair mnum r) sopt)
@@ -305,14 +286,6 @@ val mrInst_def = Define `
   |>
 `;
 
-(*
-val test_mrInst_add = EVAL``RUN (mrInst 3 addition) [15; 26]``;
-
-val test_mrInst_constr = EVAL ``mrInst 3 addition``;
-
-val test_mrInst_add2 = EVAL 
-  ``run_machine (mrInst 3 addition) (init_machine (mrInst 3 addition) [15; 26])``;
-*)
 
 val sInst_def = Define `
   (sInst mnum (Inc r sopt) = Inc r (OPTION_MAP (npair mnum) sopt))
@@ -320,16 +293,6 @@ val sInst_def = Define `
   (sInst mnum (Dec r sopt1 sopt2) = 
       Dec r (OPTION_MAP (npair mnum) sopt1) (OPTION_MAP (npair mnum) sopt2))
 `;
-
-
-fun teval n t = 
-  let 
-    val i = ref n
-    fun stop t = if !i <= 0 then true else (i := !i - 1; false)
-  in
-    with_flag (computeLib.stoppers, SOME stop) (computeLib.WEAK_CBV_CONV computeLib.the_compset) t
-  end;
-
 
 val msInst_def = Define `
   msInst mnum m = <|
@@ -340,12 +303,6 @@ val msInst_def = Define `
     Out := m.Out;
   |>
 `;
-
-(*
-val test_msInst_RUN = EVAL``RUN (msInst 3 addition) [15; 26]``;
-
-val test_msInst_add = teval 1000 ``(msInst 2 addition)``;
-*)
 
 val upd_def = Define `
   (upd NONE d = SOME d) 
@@ -389,44 +346,6 @@ val link_all_def = Define`
 `;
 
 
-(*
-val test_lka = EVAL``link_all [(mrInst 1 (msInst 1 identity)); (mrInst 2 (msInst 2 identity))]``;
-
-val test_link_out = EVAL ``RUN (link_all [identity;identity2]) [5]``;
-
-
-val test_id2 = EVAL ``RUN identity2 [15]``;
-
-val test_link = EVAL `` RUN (msInst 0 identity ⇨ msInst 2 (dup0 0 10 1 ) ⇨ msInst 1 identity2) [15] ``;
-
-val test_link_ddd = teval 10000 ``(MAPi msInst [double; double])``;
-
-val test_link_run = EVAL ``
-    let ma = (let m = MAPi (λi m. (mrInst (i+1) m)) [double;double];
-                                 dup = dup0 (HD m).Out (HD (LAST m).In) 0;
-                                 mix = MAPi msInst [HD m ; dup ; LAST m]
-               in 
-                 link_all mix)
-    in 
-      run_machine ma (init_machine ma [2])
-``;
-
-val test_link_RUN = EVAL ``RUN (let m = MAPi (λi m. (mrInst (i+1) m)) [double;double];
-                                 dup = dup0 (HD m).Out (HD (LAST m).In) 0;
-                                 mix = MAPi msInst [HD m ; dup ; LAST m]
-               in 
-                 link_all mix) [5]``;
-
-val test_1 = computeLib.RESTR_EVAL_CONV [``$o``] `` let m = MAPi (λi m. (mrInst (i+1) m)) [double;double];
-                                 dup = dup0 (HD m).Out (HD (LAST m).In) 0;
-                                 mix = MAPi msInst [HD m ; dup ; LAST m]
-               in 
-                 link_all mix``;
-*)
-
-val _ = computeLib.set_skip computeLib.the_compset ``COND`` (SOME 1);
-
-
 (* 
    -------------------------------------------------------------   
    -------- More Complicated machines and their proofs ---------
@@ -447,8 +366,6 @@ Definition simp_add_def:
   |>
 End
 
-val s_adR = EVAL ``RUN simp_add [15; 23]``;
-val s_adr = EVAL ``run_machine simp_add (init_machine simp_add [15;27])``;
 
 
 Theorem simp_add_correct:
@@ -480,11 +397,6 @@ val addition_def = Define `
       Out := 1 ;
   |>
 `;
-
-val addition = EVAL ``addition``;
-val addition_0 = EVAL ``init_machine addition [15; 23]``;
-val addition_lemma = EVAL `` run_machine addition (init_machine addition [15; 23])``;
-val R_addition = EVAL ``RUN addition [15; 23]``;
 
 
 Theorem addition_correct:
@@ -523,9 +435,6 @@ val multiplication_def = Define `
       Out := 2 ;
   |>
 `;
-
-val multiplication_lemma = EVAL `` run_machine multiplication (init_machine multiplication [3; 4])``
-val multiplication_RUN = EVAL ``RUN multiplication [2; 15]``;
 
 
 Theorem mult_loop1:
@@ -630,8 +539,6 @@ Definition exponential_def:
     Out := 2;
   |>
 End
-
-val exp_t1 = EVAL``RUN exponential [3;3]``
 
 
 Theorem exp_facts[simp]:
@@ -844,12 +751,6 @@ Definition factorial_def:
       |>
 End
 
-val fac_t1 = EVAL ``RUN factorial [0]``;
-val fac_t1 = EVAL ``RUN factorial [1]``;
-val fac_t1 = EVAL ``RUN factorial [3]``;
-val fac_t1 = EVAL ``RUN factorial [5]``;
-
-
 Theorem fac_facts[simp]:
   (factorial.In = [0]) ∧
   (factorial.Out = 1) ∧
@@ -1014,6 +915,7 @@ Definition Pi_def:
       Out := n;
     |>
 End
+
  (* 
    -------------------------------------- 
    ------------ Composition  ------------
@@ -1036,11 +938,6 @@ val Cn_def = Define `
       link_all mix' with In := MAP (npair 0) (GENLIST I isz)
 `;
 
-val test_Cn_iden = EVAL ``RUN (Cn identity [identity]) [5]``;
-
-val test_Cn_add = EVAL ``RUN (Cn addition [addition; addition]) [2;2]``;
-
-
 
 (* 
    ---------------------------------- 
@@ -1048,61 +945,6 @@ val test_Cn_add = EVAL ``RUN (Cn addition [addition; addition]) [2;2]``;
    ----------------------------------
 *)
 
-(*
-val end_plink_def = Define `
-  (end_plink (Inc q d0) d = Inc q (upd d0 d))
-    ∧
-  (end_plink (Dec q d1 d2) d = Dec q (upd d1 d) d2)
-`;
-
-
-val plinktf_def = Define`
-  plinktf m1Q tf1 tf2 m2init s = 
-     if s ∈ m1Q then end_plink (tf1 s) m2init
-     else tf2 s
-`;
-*)
-(* Partial link - only links state option 1 of m1 to m2 *)
-(*
-Definition plink:
-  plink m1 m2 = <|
-    Q := m1.Q ∪ m2.Q;
-    tf := plinktf m1.Q m1.tf m2.tf m2.q0;
-    q0 := m1.q0;
-    In := m1.In;
-    Out := m2.Out;
-  |>
-End
-
-
-
-val loop_def = Define`
-  loop m = <|
-    Q := m.Q;
-    tf := (λs. end_link (m.tf s) m.q0);
-    q0 := m.q0;
-    In := m.In;
-    Out := m.Out;
-  |>
-`;
-*)
-(* Pr.In is in the form of ``accumulator :: counter :: limit :: inputs``.
-   base: machine which computes the base case of the premitive recursion.
-   step  : the recursive step which checks the guard then perform action
-     followed by recursive call
-   *)
-
-(*
-Definition guard:
-  guard = <|
-    Q:= {(npair 0 2)};
-    tf := (λs. Dec (npair 0 2) NONE NONE);
-    q0 := (npair 0 2);
-    In := [(npair 0 2)];
-    Out := (npair 0 2);
-  |>
-End
-*)
 
 Definition loopguard:
   loopguard guard step = <|
@@ -1115,7 +957,7 @@ Definition loopguard:
   |>
 End
 
-val lpg = EVAL``loopguard (npair 0 2) ``;
+
 
 Definition count:
   count = <|
@@ -1160,15 +1002,7 @@ Definition Pr_def:
       link_all mix with In := MAP (λr. npair 0 (r+2)) (GENLIST I $ LENGTH base.In + 1)
 End
 
-(*
-Definition new_base :
-  new_base base = 
-      let base' = mrInst 2 base 
-     in MAPi (λi r. dup0 (npair 0 (i+3)) r (npair 1 0)) base'.In
-End
 
-val base = EVAL``new_base (const 1)``;
-*)
 Definition add1:
   add1 = <|
     Q:={0};
@@ -1179,53 +1013,7 @@ Definition add1:
   |>
 End
 
-val add1' = EVAL``RUN add1 [1;100;5]``;
 
-
-val machine =EVAL ``Pr identity add1``;
-
-
-val pr_add1_E = EVAL``RUN (Pr identity add1) [5;1]``;
-
-
-val pr_add1_E = EVAL``RUN (Pr identity identity') [5;1]``;
-
-val pr0 = EVAL ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [1;2]``;
-
-val pr1 = EVAL ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [3;2]``;
- 
-
-(*
-(0,0) counter
-(0,1) acc
-(0,2) guard
-
-Pr guard [i1...in]
-base [i1...in]
-step counter acc [i1...in]
-*)
-
-
-(*
-RUN (Pr base step) [...] 
-
-
-ptb = copy inputs base.register 
-base
-btp = copy base.out acc
-guard' = guard ++ pts ++ step ++ counter+1 
-stp' = stp ++ guard'
-mix = ptb ++ base ++ btp ++ guard' ++ stp'
-
-guard
-pts = copy counter::acc::inputs step.register 
-step
-counter+1
-
-stp = copy step.out acc
-guard
-
-*)
 
 (* 
    ---------------------------------- 
@@ -1233,30 +1021,38 @@ guard
    ----------------------------------
 *)
 
-
+(*
 Definition Mu_def:
    Mu f =
       let 
-        f' = mrInst 1 f
-        count' = count ++ f' 
-        mtf = dup0 Mu.In f'.In (npair 0 1)
-        ftg = dup0 f'.Out guard.In (npair 0 1)
-        guard' = plink (msInst 0 guard) (msInst 1 count)  
-        mix = mtf ++ f' ++ ftg
-        mix' = MAPi (λi m. msInst (i+2) m) mix
+        f' = mrInst 1 f;
+        count' = count ++ f' ;
+        mtf = dup Mu.In f'.In (npair 0 1);
+        ftg = dup f'.Out guard.In (npair 0 1);
+        guard' = plink (msInst 0 guard) (msInst 1 count); 
+        mix = mtf ++ f' ++ ftg;
+        mix' = MAPi (λi m. msInst (i+2) m) mix;
       in 
-        link with In := npair 0 0
+        link with In := [(npair 0 0)]
 End
-
-
+*)
 
 
 (*
-Theorem dup0_correct:
-  ∀a b c. (rsf dup0 a b c) a = a 
+
+
+Theorem identity_correct:
+  ∀a b. identity 
 Proof
 
 QED
+
+Theorem dup_correct:
+  ∀a b c. (rsf dup a b c) a = a 
+Proof
+  
+QED
+
 
 Theorem link_correct:
   ∀m1 m2 i. RUN (link m1 m2) i = run_machine m2 (rsf m1 i, SOME m2.q0)
@@ -1300,7 +1096,6 @@ Proof
 QED
 
 *)
-
 (*
 TODO  1 July
 3. Prove 
@@ -1318,11 +1113,5 @@ Proof
 
 QED
 *)
-
-(*
-TODO 
-
- *)
-
 
 val _ = export_theory ()
