@@ -138,15 +138,14 @@ val identity_def = Define `
   identity = <|
   Q := {0;1};
   tf := (λs. case s of 
-                | 0 => Inc 0 (SOME 1)
-                | 1 => Dec 0 NONE NONE
+                | 0 => Inc 1 (SOME 1)
+                | 1 => Dec 1 NONE NONE
         );
   q0 := 0;
   In := [0];
   Out := 0;
   |>
 `;
-
 
 
 val identity'_def = Define `
@@ -229,7 +228,7 @@ val double_def = Define `
 *)
 
 Definition correct1_def:
-  correct1 f m ⇔ ∀a. RUN m [a] = f a   
+  correct1 f m ⇔ (∀a. (a > 0 ∨ a = 0) ⇒ (RUN m [a] = f a)) 
 End
 
 val correct2_def = Define `
@@ -930,8 +929,8 @@ val Cn_def = Define `
         mms = MAPi (λi mm. mrInst (i+2) mm) (m::ms);
         m'  = HD mms;
         ms' = TL mms;
-        ics = FLAT (MAP (λmm. MAPi (λi r. dup0 (npair 0 i) r (npair 1 0)) mm.In) ms');
-        ocs = MAPi (λi mm. dup0 mm.Out (EL i m'.In) (npair 1 0)) ms';
+        ics = FLAT (MAP (λmm. MAPi (λi r. dup (npair 0 i) r (npair 1 0)) mm.In) ms');
+        ocs = MAPi (λi mm. dup mm.Out (EL i m'.In) (npair 1 0)) ms';
         mix = ics++ms'++ocs++[m'];
         mix' = MAPi msInst mix;
     in 
@@ -1003,12 +1002,12 @@ Definition Pr_def:
 End
 
 
-Definition add1:
+Definition add1_def:
   add1 = <|
     Q:={0};
     tf:=(λs. Inc 0 NONE);
     q0:=0;
-    In:=[3;0;1];
+    In:=[0];
     Out:=0;
   |>
 End
@@ -1037,15 +1036,94 @@ Definition Mu_def:
 End
 *)
 
+(*
+Definition correct1_def:
+  correct1 f m ⇔ ∀a. RUN m [a] = f a   
+End
+*)
+
+
+Definition zero_def:
+  zero a = 0
+End
+
+Theorem const0rm[simp] = EVAL``const 0``;
+
+Theorem const0_correct:
+  correct1 zero (const 0) 
+Proof 
+  rw[correct1_def, zero_def] >>
+  rw[RUN_def, run_machine_def, init_machine_def, findi_def] >>
+  simp[] >>
+  rw[Ntimes WHILE 2, run_machine_1_def] >>
+  rw[APPLY_UPDATE_THM] 
+QED
+
+
+Definition succ_def:
+  succ a = a + 1
+End
+
+Theorem add1_correct:
+  correct1 succ add1
+Proof
+  rw[correct1_def, succ_def, add1_def] >>
+  rw[RUN_def, run_machine_def, init_machine_def, findi_def] >>
+  rw[Ntimes WHILE 2, run_machine_1_def] >>
+  rw[APPLY_UPDATE_THM] 
+QED
 
 (*
+Definition Pi_def:
+  Pi n ns = <|
+      Q := {0;1};
+      tf := (λs. case s of 
+                | 0 => Inc 0 (SOME 1)
+                | 1 => Dec 0 NONE NONE
+        );
+      q0 := 1;
+      In := GENLIST I ns;
+      Out := n;
+    |>
+End
+*)
 
-
-Theorem identity_correct:
-  ∀a b. identity 
-Proof
+Theorem pi_correct:
+  ∀n ns. (n < LENGTH ns) ⇒ RUN (Pi n ns) ns = EL n ns 
+Proof 
 
 QED
+
+
+Definition id_def:
+  id a = a
+End
+
+Theorem identity_correct:
+  correct1 id identity 
+Proof
+  rw[correct1_def, id_def, identity_def] >>
+  rw[RUN_def, run_machine_def, init_machine_def, findi_def] >>
+  rw[Once WHILE, run_machine_1_def] >> 
+  rw[Once WHILE, run_machine_1_def] 
+  >> rw[Once WHILE, run_machine_1_def] >> rw[APPLY_UPDATE_THM] 
+QED
+
+
+val Cn_def = Define `
+  Cn m ms = 
+    let isz = LENGTH (HD ms).In;
+        mms = MAPi (λi mm. mrInst (i+2) mm) (m::ms);
+        m'  = HD mms;
+        ms' = TL mms;
+        ics = FLAT (MAP (λmm. MAPi (λi r. dup (npair 0 i) r (npair 1 0)) mm.In) ms');
+        ocs = MAPi (λi mm. dup mm.Out (EL i m'.In) (npair 1 0)) ms';
+        mix = ics++ms'++ocs++[m'];
+        mix' = MAPi msInst mix;
+    in 
+      link_all mix' with In := MAP (npair 0) (GENLIST I isz)
+`;
+
 
 Theorem dup_correct:
   ∀a b c. (rsf dup a b c) a = a 
@@ -1062,19 +1140,7 @@ QED
 
 
 
-Theorem double_correct:
-  correct1 ( *2 ) double
-Proof
-
-QED
-
-Theorem identity_correct:
-  correct1 
-Proof
-
-QED
-
-Theorem rename1r_correct:
+Theorem mrInst_correct:
   ∀mnum. correct1 f m ⇒ correct1 f (mrInst mnum m)
 Proof
   rw[mrInst_def, correct1_def, RUN_def, run_machine_def, init_machine_def] >>
