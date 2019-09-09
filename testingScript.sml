@@ -12,7 +12,7 @@ Theorem _ = computeLib.set_skip computeLib.the_compset ``COND`` (SOME 1);
 
 fun teval n t = 
   let 
-    Theorem i = ref n
+    val i = ref n
     fun stop t = if !i <= 0 then true else (i := !i - 1; false)
   in
     with_flag (computeLib.stoppers, SOME stop) (computeLib.WEAK_CBV_CONV computeLib.the_compset) t
@@ -49,6 +49,8 @@ Theorem test_double = EVAL ``RUN double [15]``
 (* Duplicate Machine *)
 Theorem test_dup = EVAL ``RUN (dup 14 15 0) [27]``;
 
+(* Projection *)
+Theorem pi = EVAL ``RUN (Pi 2 3) [2;3;4]``;
 
 (* mrInst *)
 (*
