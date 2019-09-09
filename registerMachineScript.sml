@@ -4,6 +4,7 @@ open combinTheory;
 open whileTheory;
 open indexedListsTheory;
 open numeralTheory;
+open primrecfnsTheory;
 
 val _ = new_theory "registerMachine";
 
@@ -228,7 +229,7 @@ val double_def = Define `
 *)
 
 Definition correct1_def:
-  correct1 f m ⇔ (∀a. (a > 0 ∨ a = 0) ⇒ (RUN m [a] = f a)) 
+  correct1 f m ⇔ ∀a. RUN m [a] = f a 
 End
 
 val correct2_def = Define `
@@ -850,16 +851,16 @@ Theorem fac_loop2:
      , SOME 1) 
 Proof
   Induct_on `rs 3` >> rw[] 
-    >- (rw[Once whileTheory.WHILE, run_machine_1_def, factorial_def] >>
-          `rs 3 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
+    >- (rw[Once WHILE, run_machine_1_def, factorial_def] >>
+          `rs 3 = 0` by simp[] >> fs[] >> rw[APPLY_UPDATE_THM] >>
           qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
           `rs1 = rs2` suffices_by simp[] >> 
-          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
+          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, APPLY_UPDATE_THM] >>
           rw[] >> rw[])
-    >> rw[SimpLHS, Ntimes whileTheory.WHILE 2, run_machine_1_def, factorial_def] >>
-      rw[combinTheory.APPLY_UPDATE_THM] >>
+    >> rw[SimpLHS, Ntimes WHILE 2, run_machine_1_def, factorial_def] >>
+      rw[APPLY_UPDATE_THM] >>
       `rs 3 = SUC v` by simp[] >> fs[] >> 
-      fs[factorial_def, combinTheory.APPLY_UPDATE_THM] >> 
+      fs[factorial_def, APPLY_UPDATE_THM] >> 
       qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
       `rs1 = rs2` suffices_by simp[] >>
       simp[Abbr `rs1`, Abbr`rs2`] >>
@@ -909,11 +910,12 @@ Definition Pi_def:
                 | 0 => Inc 0 (SOME 1)
                 | 1 => Dec 0 NONE NONE
         );
-      q0 := 1;
-      In := GENLIST I ns;
-      Out := n;
+      q0 := 0;
+      In := GENLIST SUC ns;
+      Out := SUC n;
     |>
 End
+
 
  (* 
    -------------------------------------- 
@@ -1042,17 +1044,16 @@ Definition correct1_def:
 End
 *)
 
-
-Definition zero_def:
-  zero a = 0
+Definition correct_def:
+  correct m f a ⇔ ∀l. LENGTH l = a ⇒ RUN m l = f l
 End
 
 Theorem const0rm[simp] = EVAL``const 0``;
 
 Theorem const0_correct:
-  correct1 zero (const 0) 
+  correct (const 0) zerof 1
 Proof 
-  rw[correct1_def, zero_def] >>
+  rw[correct_def] >>
   rw[RUN_def, run_machine_def, init_machine_def, findi_def] >>
   simp[] >>
   rw[Ntimes WHILE 2, run_machine_1_def] >>
@@ -1060,38 +1061,14 @@ Proof
 QED
 
 
-Definition succ_def:
-  succ a = a + 1
-End
-
 Theorem add1_correct:
-  correct1 succ add1
+  correct add1 succ 1
 Proof
-  rw[correct1_def, succ_def, add1_def] >>
+  rw[correct_def, add1_def] >>
   rw[RUN_def, run_machine_def, init_machine_def, findi_def] >>
+  Cases_on `l` >> fs[] >>
   rw[Ntimes WHILE 2, run_machine_1_def] >>
   rw[APPLY_UPDATE_THM] 
-QED
-
-(*
-Definition Pi_def:
-  Pi n ns = <|
-      Q := {0;1};
-      tf := (λs. case s of 
-                | 0 => Inc 0 (SOME 1)
-                | 1 => Dec 0 NONE NONE
-        );
-      q0 := 1;
-      In := GENLIST I ns;
-      Out := n;
-    |>
-End
-*)
-
-Theorem pi_correct:
-  ∀n ns. (n < LENGTH ns) ⇒ RUN (Pi n ns) ns = EL n ns 
-Proof 
-
 QED
 
 
@@ -1110,6 +1087,49 @@ Proof
 QED
 
 
+(*
+Definition Pi_def:
+  Pi n ns = <|
+      Q := {0;1};
+      tf := (λs. case s of 
+                | 0 => Inc 0 (SOME 1)
+                | 1 => Dec 0 NONE NONE
+        );
+      q0 := 1;
+      In := GENLIST I ns;
+      Out := n;
+    |>
+End
+*)
+
+Theorem pi_correct:
+  correct (Pi i j) (proj i) j
+Proof 
+  rw[Pi_def, correct_def] >>
+  rw[RUN_def, run_machine_def, init_machine_def, findi_def] >>
+  Cases_on `l` >> fs[] 
+  >- (rw[Ntimes WHILE 3, run_machine_1_def] >> rw[APPLY_UPDATE_THM] >> fs[findi_def])
+  >> simp[Once WHILE, run_machine_1_def] 
+  >>
+QED
+
+
+(* 
+TODO 
+
+5 Sep
+
+1. Theorem for findi n(GENLIST SUC k)
+2. finish pi
+3. dup (induct on r1) 
+4. Think about pre-condition and post-condition for register machines in general
+condition P m q0 Q <=>  /\
+P and Q are for registers 
+5. WHILE assumes things finishes , define a predicate that means terminates (takes a machine, registers states, q0 and returns true if terminate else false)
+*)
+
+
+(*
 val Cn_def = Define `
   Cn m ms = 
     let isz = LENGTH (HD ms).In;
@@ -1123,12 +1143,19 @@ val Cn_def = Define `
     in 
       link_all mix' with In := MAP (npair 0) (GENLIST I isz)
 `;
-
+*)
 
 Theorem dup_correct:
-  ∀a b c. (rsf dup a b c) a = a 
+  correct1 I (dup 1 2 3)
 Proof
-  
+  rw[correct1_def, dup_def] >>
+  rw[RUN_def, run_machine_def, init_machine_def, findi_def] >>
+  rw[Once WHILE, run_machine_1_def] >>
+  Induct_on `a` >> rw[] 
+  >> rw[Ntimes WHILE 3, run_machine_1_def] 
+  >> rw[APPLY_UPDATE_THM] 
+  >> rw[ADD1]
+  >> 
 QED
 
 
@@ -1139,38 +1166,35 @@ Proof
 QED
 
 
-
-Theorem mrInst_correct:
+Theorem mrInst1_correct:
   ∀mnum. correct1 f m ⇒ correct1 f (mrInst mnum m)
 Proof
-  rw[mrInst_def, correct1_def, RUN_def, run_machine_def, init_machine_def] >>
-  qmatch_abbrev_tac `FST (WHILE gd (r m) init) pair = f a` >>
-  rw[rInst_def] >>
-
+  rw[mrInst_def, correct1_def] >>
+  
 QED
 
-Theorem rename2r_correct:
+
+Theorem msInst1_correct:
+  ∀mnum. correct1 f m ⇒ correct1 f (msInst mnum m)
 Proof
+ rw[msInst_def, correct1_def] >>
+  
 QED
 
-Theorem rename1s_correct:
+Theorem mrInst2_correct:
+∀mnum. correct2 f m ⇒ correct2 f (mrInst mnum m)
 Proof
+
 QED
 
-Theorem rename2s_correct:
+
+Theorem msInst2_correct:
+  ∀mnum. correct2 f m ⇒ correct2 f (msInst mnum m)
 Proof
+
 QED
 
-*)
-(*
-TODO  1 July
-3. Prove 
-      correct1 f m1 /\ correct1 g m2 
-      ==> correct1 (f o g) (Cn m1 m2)
-  even more general -> a list of ms  ...
-*)
 
-(*
 Theorem Cn1_correct:
   correct1 f1 m1 ∧ correct1 f2 m2 ⇒ ∀n. RUN (Cn m1 [m2]) [n] = (f1 o f2) n  
 Proof
@@ -1178,6 +1202,5 @@ Proof
   rw[Cn_def] >>
 
 QED
-*)
 
 val _ = export_theory ()
