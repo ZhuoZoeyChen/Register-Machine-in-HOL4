@@ -5,6 +5,7 @@ open whileTheory;
 open indexedListsTheory;
 open numeralTheory;
 open primrecfnsTheory;
+open listTheory;
 
 val _ = new_theory "registerMachine";
 
@@ -626,7 +627,7 @@ Proof
     >> fs[exponential_def, combinTheory.APPLY_UPDATE_THM] 
     >> qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` 
     >> `rs1 = rs2` suffices_by simp[] >> simp[Abbr `rs1`, Abbr`rs2`]
-    >> fs[arithmeticTheory.ADD1] 
+    >> fs[ADD1] 
     >> `(rs 2 + v * rs 2) = rs 2 * (v + 1)` by simp[]
     >> simp[FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] 
     >> rw[]
@@ -911,11 +912,10 @@ Definition Pi_def:
                 | 1 => Dec 0 NONE NONE
         );
       q0 := 0;
-      In := GENLIST SUC ns;
-      Out := SUC n;
+      In := GENLIST I ns;
+      Out := n;
     |>
 End
-
 
  (* 
    -------------------------------------- 
@@ -1038,15 +1038,26 @@ Definition Mu_def:
 End
 *)
 
-(*
-Definition correct1_def:
-  correct1 f m ⇔ ∀a. RUN m [a] = f a   
-End
-*)
-
 Definition correct_def:
   correct m f a ⇔ ∀l. LENGTH l = a ⇒ RUN m l = f l
 End
+
+Definition run_step_def:
+  run_step m rsq 0 = rsq ∧
+  run_step m rsq (SUC n) = run_step m (run_machine_1 m rsq) n 
+End
+
+Definition rmcorr_def:
+  rmcorr m q P qf Q = 
+    ∀rs. P rs ⇒ ∃n rs'. (run_step m (rs, SOME q) n = (rs', qf)) ∧ Q rs' 
+End
+
+Theorem rmcorr_trans:
+  rmcorr m q1 P (SOME q2) Q ∧ rmcorr m q2 Q q3 R ⇒ rmcorr m q1 P q3 R
+Proof 
+  rw[rmcorr_def] >>
+
+QED
 
 Theorem const0rm[simp] = EVAL``const 0``;
 
@@ -1087,44 +1098,64 @@ Proof
 QED
 
 
-(*
-Definition Pi_def:
-  Pi n ns = <|
-      Q := {0;1};
-      tf := (λs. case s of 
-                | 0 => Inc 0 (SOME 1)
-                | 1 => Dec 0 NONE NONE
+val identity_def = Define `
+  identity = <|
+  Q := {0;1};
+  tf := (λs. case s of 
+                | 0 => Inc 1 (SOME 1)
+                | 1 => Dec 1 NONE NONE
         );
-      q0 := 1;
-      In := GENLIST I ns;
-      Out := n;
-    |>
-End
-*)
+  q0 := 0;
+  In := [0];
+  Out := 0;
+  |>
+`;
+
+
+Theorem findi_snoc:
+  findi i (SNOC k l) = 
+            if MEM i l then findi i l 
+            else if i = k then LENGTH l
+            else LENGTH l + 1
+Proof 
+  Induct_on `l` >> simp[findi_def]
+  >> rw[] 
+  >> fs[]
+QED
+
+
+Theorem findi_genlist[simp]:
+  findi i (GENLIST I j) = 
+              if i < j then i 
+                else j
+Proof
+  Induct_on `j` >> simp[findi_def, GENLIST, findi_snoc, MEM_GENLIST]
+QED
+
 
 Theorem pi_correct:
   correct (Pi i j) (proj i) j
 Proof 
   rw[Pi_def, correct_def] >>
   rw[RUN_def, run_machine_def, init_machine_def, findi_def] >>
-  Cases_on `l` >> fs[] 
-  >- (rw[Ntimes WHILE 3, run_machine_1_def] >> rw[APPLY_UPDATE_THM] >> fs[findi_def])
-  >> simp[Once WHILE, run_machine_1_def] 
-  >>
+  rw[AllCaseEqs()] >>
+  rw[Once WHILE, run_machine_1_def] 
+  >> rw[Ntimes WHILE 2, run_machine_1_def, APPLY_UPDATE_THM]
+  >> simp[proj_def]
 QED
-
 
 (* 
 TODO 
 
-5 Sep
+18 Sep
 
-1. Theorem for findi n(GENLIST SUC k)
-2. finish pi
+
+1. prove rmcorr_trans (hint: 1. prove lemma about run_step 2. combine assumption 0 and 2)
+
+run_Step a .. ( run_step b ..)= run_step (a+b) ...
+
 3. dup (induct on r1) 
-4. Think about pre-condition and post-condition for register machines in general
-condition P m q0 Q <=>  /\
-P and Q are for registers 
+
 5. WHILE assumes things finishes , define a predicate that means terminates (takes a machine, registers states, q0 and returns true if terminate else false)
 *)
 
@@ -1145,13 +1176,25 @@ val Cn_def = Define `
 `;
 *)
 
+(*
+Definition triple_def:
+  triple P q m Q = 
+    ∀rs. P rs ⇒ ∃n rs'. (run_step m (rs, SOME q) n = (rs', NONE)) ∧ Q rs rs' 
+End
+*)
+
 Theorem dup_correct:
-  correct1 I (dup 1 2 3)
+  triple (λrs0. rs0 z = 0) 0 (dup x y z) (λrs0 rs. rs = rs0 (| y |-> rs0 x |))
 Proof
-  rw[correct1_def, dup_def] >>
-  rw[RUN_def, run_machine_def, init_machine_def, findi_def] >>
+  rw[dup_def, triple_def] >>
+  qabbrev_tac `X = rs0 x` >>
+  qabbrev_tac `Y = rs0 y` >>
+  qabbrev_tac `Z = rs0 z` >>
+  qexists_tac `Y+5*X+3`   >>
+
+
   rw[Once WHILE, run_machine_1_def] >>
-  Induct_on `a` >> rw[] 
+  Induct_on `r1` >> rw[] 
   >> rw[Ntimes WHILE 3, run_machine_1_def] 
   >> rw[APPLY_UPDATE_THM] 
   >> rw[ADD1]
