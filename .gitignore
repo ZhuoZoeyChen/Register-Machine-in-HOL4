@@ -1,0 +1,23 @@
+.HOLMK/
+	.hollogs/
+	Holmakefile
+	primRecRMScript.sml
+	primRecRMTheory.dat
+	primRecRMTheory.sig
+	primRecRMTheory.sml
+	primRecRMTheory.ui
+	primRecRMTheory.uo
+	registerMachineTheory.dat
+	registerMachineTheory.sig
+	registerMachineTheory.sml
+	registerMachineTheory.ui
+	registerMachineTheory.uo
+	subseqTheory.dat
+	subseqTheory.sig
+	subseqTheory.sml
+	subseqTheory.ui
+	subseqTheory.uo
+	testingScript.ui
+	testingScript.uo
+	testingTheory.ui
+	testingTheory.uo
