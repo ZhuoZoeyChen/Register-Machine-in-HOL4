@@ -50,7 +50,8 @@ Theorem test_double = EVAL ``RUN double [15]``
 Theorem test_dup = EVAL ``RUN (dup 14 15 0) [27]``;
 
 (* Projection *)
-Theorem pi = EVAL ``RUN (Pi 2 3) [2;3;4]``;
+Theorem pi = EVAL ``RUN (Pi 4 5) [0;1;2;3;4]``;
+Theorem pi = EVAL ``RUN (Pi 1 0) []``;
 
 (* mrInst *)
 (*
