@@ -1038,18 +1038,22 @@ Definition Mu_def:
 End
 *)
 
+(* 
+   ---------------------------------------------
+   ----  Proving RM -> Recursive Functions  ----
+   ---------------------------------------------
+   - 0 
+   - SUC
+   - Projection
+   - Composition
+   - Primitive Recursion
+   - Minimisation
+*)
+
+(* Helper functions *)
 Definition correct_def:
   correct m f a ⇔ ∀l. LENGTH l = a ⇒ RUN m l = f l
 End
-
-(* 
-TODO 18 Sep
-
-[DONE]1. prove rmcorr_trans (hint: 1. prove lemma about run_step 2. combine assumption 0 and 2)
-run_Step a .. ( run_step b ..)= run_step (a+b) ...
-3. dup (induct on r1) 
-5. WHILE assumes things finishes , define a predicate that means terminates (takes a machine, registers states, q0 and returns true if terminate else false)
-*)
 
 Definition run_step_def:
   run_step m rsq 0 = rsq ∧
@@ -1096,6 +1100,7 @@ Proof
   rw[]
 QED
 
+(* 0 *)
 Theorem const0rm[simp] = EVAL``const 0``;
 
 Theorem const0_correct:
@@ -1108,7 +1113,7 @@ Proof
   rw[APPLY_UPDATE_THM] 
 QED
 
-
+(* SUC *)
 Theorem add1_correct:
   correct add1 succ 1
 Proof
@@ -1119,36 +1124,7 @@ Proof
   rw[APPLY_UPDATE_THM] 
 QED
 
-
-Definition id_def:
-  id a = a
-End
-
-Theorem identity_correct:
-  correct1 id identity 
-Proof
-  rw[correct1_def, id_def, identity_def] >>
-  rw[RUN_def, run_machine_def, init_machine_def, findi_def] >>
-  rw[Once WHILE, run_machine_1_def] >> 
-  rw[Once WHILE, run_machine_1_def] 
-  >> rw[Once WHILE, run_machine_1_def] >> rw[APPLY_UPDATE_THM] 
-QED
-
-
-val identity_def = Define `
-  identity = <|
-  Q := {0;1};
-  tf := (λs. case s of 
-                | 0 => Inc 1 (SOME 1)
-                | 1 => Dec 1 NONE NONE
-        );
-  q0 := 0;
-  In := [0];
-  Out := 0;
-  |>
-`;
-
-
+(* Projection *)
 Theorem findi_snoc:
   findi i (SNOC k l) = 
             if MEM i l then findi i l 
@@ -1159,7 +1135,6 @@ Proof
   >> rw[] 
   >> fs[]
 QED
-
 
 Theorem findi_genlist[simp]:
   findi i (GENLIST I j) = 
@@ -1181,6 +1156,20 @@ Proof
   >> simp[proj_def]
 QED
 
+(* Cn *)
+Definition id_def:
+  id a = a
+End
+
+Theorem identity_correct:
+  correct1 id identity 
+Proof
+  rw[correct1_def, id_def, identity_def] >>
+  rw[RUN_def, run_machine_def, init_machine_def, findi_def] >>
+  rw[Once WHILE, run_machine_1_def] >> 
+  rw[Once WHILE, run_machine_1_def] 
+  >> rw[Once WHILE, run_machine_1_def] >> rw[APPLY_UPDATE_THM] 
+QED
 
 
 (*
@@ -1206,6 +1195,18 @@ Definition triple_def:
 End
 *)
 
+(* 
+TODO 18 Sep
+
+[DONE]1. prove rmcorr_trans (hint: 1. prove lemma about run_step 2. combine assumption 0 and 2)
+run_Step a .. ( run_step b ..)= run_step (a+b) ...
+
+3. dup (induct on r1) 
+
+5. WHILE assumes things finishes , define a predicate that means terminates (takes a machine, registers states, q0 and returns true if terminate else false)
+*)
+
+(*
 Theorem dup_correct:
   triple (λrs0. rs0 z = 0) 0 (dup x y z) (λrs0 rs. rs = rs0 (| y |-> rs0 x |))
 Proof
@@ -1223,6 +1224,7 @@ Proof
   >> rw[ADD1]
   >> 
 QED
+*)
 
 
 Theorem link_correct:
