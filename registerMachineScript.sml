@@ -1042,10 +1042,39 @@ Definition correct_def:
   correct m f a ⇔ ∀l. LENGTH l = a ⇒ RUN m l = f l
 End
 
+(* 
+TODO 18 Sep
+
+[DONE]1. prove rmcorr_trans (hint: 1. prove lemma about run_step 2. combine assumption 0 and 2)
+run_Step a .. ( run_step b ..)= run_step (a+b) ...
+3. dup (induct on r1) 
+5. WHILE assumes things finishes , define a predicate that means terminates (takes a machine, registers states, q0 and returns true if terminate else false)
+*)
+
 Definition run_step_def:
   run_step m rsq 0 = rsq ∧
   run_step m rsq (SUC n) = run_step m (run_machine_1 m rsq) n 
 End
+
+Theorem run_one_step:
+  ∀m rsq n. run_machine_1 m (run_step m rsq n) = run_step m rsq (SUC n)
+Proof 
+  Induct_on `n` >> simp[run_step_def]
+QED
+
+Theorem combo_steps:
+ ∀m rs q1 n1 n2.  run_step m (run_step m (rs, SOME q1) n1) n2
+  = run_step m (rs, SOME q1) (n1+n2)
+Proof 
+  Induct_on `n2` 
+  >- simp[run_step_def]
+  >> rw[run_step_def, run_machine_def]
+  >> `n1 + SUC n2 = SUC n1 + n2` by fs[]
+  >> simp[]
+  >> `run_step m (run_step m (rs,SOME q1) (SUC n1)) n2 =
+       run_step m (rs,SOME q1) (SUC n1 + n2)` suffices_by rw[run_one_step]
+  >> metis_tac[]
+QED
 
 Definition rmcorr_def:
   rmcorr m q P qf Q = 
@@ -1055,8 +1084,16 @@ End
 Theorem rmcorr_trans:
   rmcorr m q1 P (SOME q2) Q ∧ rmcorr m q2 Q q3 R ⇒ rmcorr m q1 P q3 R
 Proof 
-  rw[rmcorr_def] >>
-
+  rw[rmcorr_def] >> 
+  last_x_assum (qspec_then `rs` assume_tac) >> rfs[] >>
+  last_x_assum (qspec_then `rs'` assume_tac) >> rfs[] >>
+  qexists_tac`n+n'` >>
+  qexists_tac`rs''` >>
+  `run_step m (rs,SOME q1) (n + n') =  run_step m (run_step m (rs,SOME q1) n) n' ` 
+    by simp[combo_steps] >>
+  `run_step m (run_step m (rs,SOME q1) n) n' = run_step m (rs', SOME q2) n' ` 
+    by simp[] >>
+  rw[]
 QED
 
 Theorem const0rm[simp] = EVAL``const 0``;
@@ -1144,20 +1181,6 @@ Proof
   >> simp[proj_def]
 QED
 
-(* 
-TODO 
-
-18 Sep
-
-
-1. prove rmcorr_trans (hint: 1. prove lemma about run_step 2. combine assumption 0 and 2)
-
-run_Step a .. ( run_step b ..)= run_step (a+b) ...
-
-3. dup (induct on r1) 
-
-5. WHILE assumes things finishes , define a predicate that means terminates (takes a machine, registers states, q0 and returns true if terminate else false)
-*)
 
 
 (*
