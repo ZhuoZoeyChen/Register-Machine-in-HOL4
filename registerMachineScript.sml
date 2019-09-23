@@ -1085,6 +1085,10 @@ Definition rmcorr_def:
     ∀rs. P rs ⇒ ∃n rs'. (run_step m (rs, SOME q) n = (rs', qf)) ∧ Q rs' 
 End
 
+Definition rm_ends_def:
+  rm_ends m rs q = ∃n rs'. run_step m (rs, SOME q) n = (rs', NONE) 
+End 
+
 Theorem rmcorr_trans:
   rmcorr m q1 P (SOME q2) Q ∧ rmcorr m q2 Q q3 R ⇒ rmcorr m q1 P q3 R
 Proof 
@@ -1224,6 +1228,111 @@ Proof
   >> rw[ADD1]
   >> 
 QED
+*)
+(*
+Definition rmcorr_def:
+  rmcorr m q P qf Q = 
+    ∀rs. P rs ⇒ ∃n rs'. (run_step m (rs, SOME q) n = (rs', qf)) ∧ Q rs' 
+End
+*)
+
+Theorem loop_correct_0:
+∀ m q INV gd body exit.
+  (∀N. rmcorr m q (λrs. INV rs ∧ rs gd = N ∧ 0 < N) (SOME q) (λrs'. INV rs' ∧ rs' gd < N))
+∧ (m.tf(q) = Dec gd (SOME body) exit) ∧ q ∈ m.Q
+
+==> rmcorr m q INV exit (λrs. INV rs ∧ rs gd = 0)
+Proof   
+  rw[rmcorr_def] >>
+  completeInduct_on `rs gd` >>
+  rw[] >>
+  fs[PULL_FORALL] >>
+  Cases_on`0<rs gd` 
+  >- (first_x_assum drule_all >> rw[] 
+      >> first_x_assum drule_all >> rw[] >> metis_tac[combo_steps])
+  >> fs[]
+  >> map_every qexists_tac [`SUC 0`, `rs`]
+  >> rw[run_step_def]
+  >> rw[run_machine_1_def]
+QED
+
+(*
+TODO 
+23 Sep
+1. Prove precondition weakening and post condi strengthening 
+2. Use 1 and loop_cor_0 to prove loop correct
+3. dup correct 
+*)
+
+Theorem loop_correct:
+∀ m q INV P Q gd body exit.
+  (∀N. rmcorr m q (λrs. INV rs ∧ rs gd = N ∧ 0 < N) (SOME q) (λrs'. INV rs' ∧ rs' gd < N))
+∧ (∀rs. P rs ⇒ INV rs) 
+∧ (∀rs. INV rs ∧ rs gd = 0 ⇒ Q rs)
+∧ (m.tf(q) = Dec gd (SOME body) exit)
+∧ q ∈ m.Q
+
+==> rmcorr m q P exit Q
+Proof   
+  rw[rmcorr_def] >>
+  `INV rs` by fs[] >>
+  completeInduct_on `rs gd` >>
+  rw[] >>
+  fs[PULL_FORALL]
+
+
+QED
+
+Theorem dup_clear_correct:
+  ∀r1 r2 r3 RS. 
+  rmcorr (dup r1 r2 r3) 0 (λrs. rs = RS ∧ rs 3 = 0) (SOME 1) (λrs'. rs' = RS (| 2 |-> 0 |))
+Proof 
+  rw[rmcorr_def]
+QED 
+
+Theorem dup_tsf_correct:
+ ∀r1 r2 r3. 
+  rmcorr (dup r1 r2 r3) 1 (λrs. (rs r2 = 0) ∧ (rs r3 = 0)) (SOME 4) (λrs'. (rs' r1 = 0) ∧ (rs' r3 = 0))
+Proof 
+
+QED 
+
+Theorem dup_rst_correct:
+ ∀r1 r2 r3. 
+  rmcorr (dup r1 r2 r3) 4 (λrs. (rs r2 = 0) ∧ (rs r3 = 0)) (SOME 4) (λrs'. (rs' r1 = 0) ∧ (rs' r3 = 0))
+Proof 
+
+QED 
+
+Theorem dup_correct:
+  ∀r1 r2 r3 RS. 
+  rmcorr (dup r1 r2 r3) 0 (λrs. rs = RS ∧ rs 3 = 0) NONE (λrs'. rs' = RS (| 2 |-> RS 1 |) ) 
+Proof 
+  rw[rmcorr_def, dup_def] >>
+  qexists_tac `n` >>
+  qexists_tac `rs'` >> 
+  Induct_on `r2` 
+    >- (rw[Once WHILE, run_machine_1_def] >>)
+    >>  
+QED
+
+(*
+val dup_def = Define `
+  dup r1 r2 r3= <| 
+    Q := {0;1;2;3;4;5};
+    tf := (λs. case s of 
+            | 0 => Dec r2 (SOME 0) (SOME 1)
+            | 1 => Dec r1 (SOME 2) (SOME 4)
+            | 2 => Inc r2 (SOME 3)
+            | 3 => Inc r3 (SOME 1) 
+            | 4 => Dec r3 (SOME 5) NONE
+            | 5 => Inc r1 (SOME 4)
+            );
+    q0 := 0;
+    In := [r1];
+    Out := r2;
+  |>
+`;
 *)
 
 
