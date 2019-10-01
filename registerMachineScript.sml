@@ -1175,7 +1175,6 @@ Proof
   >> rw[Once WHILE, run_machine_1_def] >> rw[APPLY_UPDATE_THM] 
 QED
 
-
 (*
 Definition rmcorr_def:
   rmcorr m q P qf Q = 
@@ -1216,14 +1215,6 @@ Proof
   rw[]
 QED
 
-(*
-TODO 
-23 Sep
-1. Prove precondition weakening and post condi strengthening 
-2. Use 1 and loop_correct_0 to prove loop correct
-3. dup correct 
-*)
-
 Theorem loop_correct:
 ∀ m q INV P Q gd body exit.
   (∀N. rmcorr m q (λrs. INV rs ∧ rs gd = N ∧ 0 < N) (SOME q) (λrs'. INV rs' ∧ rs' gd < N))
@@ -1246,37 +1237,96 @@ Proof
   rw[]
 QED
 
-Theorem dup_clear_correct:
-  ∀r1 r2 r3 RS. 
-  rmcorr (dup r1 r2 r3) 0 (λrs. rs = RS ∧ rs 3 = 0) (SOME 1) (λrs'. rs' = RS (| 2 |-> 0 |))
+Theorem dup_prop[simp]:
+  (dup r1 r2 r3).tf 0 = Dec r2 (SOME 0) (SOME 1) ∧
+  (dup r1 r2 r3).tf 1 = Dec r1 (SOME 2) (SOME 4) ∧
+  (dup r1 r2 r3).Q = {0;1;2;3;4;5}
+Proof
+  rw[dup_def]
+QED
+
+(*
+Theorem rmcorr_dec1:
+  m.tf q0 = Dec r t e 
+∧
+  (∀rs. P rs ∧ 0 < rs r ⇒ Q (rs (| r |-> rs r - 1 |) ))
+∧ 
+  (∀rs. e ≠ t ∧ P rs ⇒ 0 < rs r)
+∧ 
+  q0 ∈ m.Q
+∧ 
+  (∀rs. e = t ⇒ (P rs ⇒ Q rs))
+
+==> rmcorr m q0 P t Q 
 Proof 
-  rw[rmcorr_def]
-QED 
+  rw[rmcorr_def] >>
+  qexists_tac`SUC 0` >>
+  simp[run_machine_1_def, run_step_def] >>
+  rw[]
+  >- (CCONTR_TAC >> `0 < rs r` by fs[] >> fs[])
+  >> metis_tac[GREATER_DEF]
+QED
 
-Theorem dup_tsf_correct:
- ∀r1 r2 r3. 
-  rmcorr (dup r1 r2 r3) 1 (λrs. (rs r2 = 0) ∧ (rs r3 = 0)) (SOME 4) (λrs'. (rs' r1 = 0) ∧ (rs' r3 = 0))
+
+Theorem rmcorr_inc1:
 Proof 
+QED
+*)
 
-QED 
-
-Theorem dup_rst_correct:
- ∀r1 r2 r3. 
-  rmcorr (dup r1 r2 r3) 4 (λrs. (rs r2 = 0) ∧ (rs r3 = 0)) (SOME 4) (λrs'. (rs' r1 = 0) ∧ (rs' r3 = 0))
+(*
+TODO
+1. finish rmcorr_dec
+2. try to finish dup
+3. link_correct *)
+Theorem rmcorr_dec:
+  m.tf q0 = Dec r (SOME t) (SOME e)
+∧ 
+  q0 ∈ m.Q
+∧
+  rmcorr m t (λrs. P (rs (|r |-> rs r + 1|))) q Q
+∧
+  rmcorr m e (λrs. P rs ∧ rs r = 0) q Q
+==>
+  rmcorr m q0 P q Q
 Proof 
-
-QED 
+  rw[rmcorr_def] >> 
+  Cases_on `0 < rs r` >> 
+  >- (qabbrev_tac`rs' = rs (| r |-> rs r - 1|)` >> 
+      `P rs' ⦇r ↦ rs' r + 1⦈ ` 
+      by simp[Abbr`rs'`, APPLY_UPDATE_THM, UPDATE_EQ, APPLY_UPDATE_ID]
+       >> last_x_assum drule >> strip_tac >> cheat)
+  >> `rs r = 0` by simp[] 
+  >> first_x_assum drule_all
+  >> strip_tac >> cheat
+QED
 
 Theorem dup_correct:
   ∀r1 r2 r3 RS. 
-  rmcorr (dup r1 r2 r3) 0 (λrs. rs = RS ∧ rs 3 = 0) NONE (λrs'. rs' = RS (| 2 |-> RS 1 |) ) 
+  r1 ≠ r2 ∧ r1 ≠ r3 ∧ r2 ≠ r3 ∧ RS r3 = 0
+==>
+  rmcorr (dup r1 r2 r3) 0 (λrs. rs = RS) NONE (λrs'. rs' = RS (| r2 |-> RS r1 |) ) 
 Proof 
-  rw[rmcorr_def, dup_def] >>
-  qexists_tac `n` >>
-  qexists_tac `rs'` >> 
-  Induct_on `r2` 
-    >- (rw[Once WHILE, run_machine_1_def] >>)
-    >>  
+  rw[] >>
+  irule rmcorr_trans >>
+  map_every qexists_tac [`λrs'. rs'= RS (| r2 |-> 0 |)`, `1`] >> rw[] 
+  >- (irule loop_correct >> simp[] >> qexists_tac`(λrs. ∀k. k ≠ r2 ⇒ rs k = RS k)` >> rw[]
+      >- (rw[FUN_EQ_THM, APPLY_UPDATE_THM] >> rw[] >> rw[])
+      >> irule rmcorr_dec1 >> simp[] >> rw[] >> rw[APPLY_UPDATE_THM])
+  >> irule rmcorr_trans >>
+  map_every qexists_tac [`λrs'. rs'= RS (| r1 |-> 0 ; r2 |-> RS r1 ; r3 |-> RS r1|)`, `4`]
+  >> rw[] 
+  >- (irule loop_correct >> simp[] 
+      >> qexists_tac`(λrs. rs r1 + rs r2 = RS r1 ∧ rs r2 = rs r3 ∧ ∀k. k ∉ {r1; r2; r3} ⇒ rs k = RS k)` 
+      >> rw[]
+      >- rw[APPLY_UPDATE_THM] 
+      >- rw[APPLY_UPDATE_THM] 
+      >- rw[APPLY_UPDATE_THM] 
+      >- (rw[FUN_EQ_THM, APPLY_UPDATE_THM] >> rw[] >> rw[])
+      >> irule rmcorr_trans
+      irule rmcorr_dec1 >> simp[] >> rw[] >> rw[APPLY_UPDATE_THM])
+  >> irule rmcorr_trans >>
+
+  
 QED
 
 (*
