@@ -1177,59 +1177,6 @@ QED
 
 
 (*
-val Cn_def = Define `
-  Cn m ms = 
-    let isz = LENGTH (HD ms).In;
-        mms = MAPi (λi mm. mrInst (i+2) mm) (m::ms);
-        m'  = HD mms;
-        ms' = TL mms;
-        ics = FLAT (MAP (λmm. MAPi (λi r. dup (npair 0 i) r (npair 1 0)) mm.In) ms');
-        ocs = MAPi (λi mm. dup mm.Out (EL i m'.In) (npair 1 0)) ms';
-        mix = ics++ms'++ocs++[m'];
-        mix' = MAPi msInst mix;
-    in 
-      link_all mix' with In := MAP (npair 0) (GENLIST I isz)
-`;
-*)
-
-(*
-Definition triple_def:
-  triple P q m Q = 
-    ∀rs. P rs ⇒ ∃n rs'. (run_step m (rs, SOME q) n = (rs', NONE)) ∧ Q rs rs' 
-End
-*)
-
-(* 
-TODO 18 Sep
-
-[DONE]1. prove rmcorr_trans (hint: 1. prove lemma about run_step 2. combine assumption 0 and 2)
-run_Step a .. ( run_step b ..)= run_step (a+b) ...
-
-3. dup (induct on r1) 
-
-5. WHILE assumes things finishes , define a predicate that means terminates (takes a machine, registers states, q0 and returns true if terminate else false)
-*)
-
-(*
-Theorem dup_correct:
-  triple (λrs0. rs0 z = 0) 0 (dup x y z) (λrs0 rs. rs = rs0 (| y |-> rs0 x |))
-Proof
-  rw[dup_def, triple_def] >>
-  qabbrev_tac `X = rs0 x` >>
-  qabbrev_tac `Y = rs0 y` >>
-  qabbrev_tac `Z = rs0 z` >>
-  qexists_tac `Y+5*X+3`   >>
-
-
-  rw[Once WHILE, run_machine_1_def] >>
-  Induct_on `r1` >> rw[] 
-  >> rw[Ntimes WHILE 3, run_machine_1_def] 
-  >> rw[APPLY_UPDATE_THM] 
-  >> rw[ADD1]
-  >> 
-QED
-*)
-(*
 Definition rmcorr_def:
   rmcorr m q P qf Q = 
     ∀rs. P rs ⇒ ∃n rs'. (run_step m (rs, SOME q) n = (rs', qf)) ∧ Q rs' 
@@ -1256,11 +1203,24 @@ Proof
   >> rw[run_machine_1_def]
 QED
 
+Theorem weak_rmcorr:
+  (∀s. P s ⇒ P' s) ∧ (∀s. Q' s ⇒ Q s) ∧ (rmcorr m q0 P' q Q') 
+==> rmcorr m q0 P q Q 
+Proof 
+  rw[rmcorr_def] >>
+  `P' rs` by fs[] >>
+  `∃n rs'. run_step m (rs,SOME q0) n = (rs',q) ∧ Q' rs'` by fs[] >>
+  `Q rs'` by fs[] >>
+  qexists_tac `n` >> 
+  qexists_tac `rs'` >>
+  rw[]
+QED
+
 (*
 TODO 
 23 Sep
 1. Prove precondition weakening and post condi strengthening 
-2. Use 1 and loop_cor_0 to prove loop correct
+2. Use 1 and loop_correct_0 to prove loop correct
 3. dup correct 
 *)
 
@@ -1274,13 +1234,16 @@ Theorem loop_correct:
 
 ==> rmcorr m q P exit Q
 Proof   
+  rw[] >>
+  `rmcorr m q INV exit (λrs. INV rs ∧ rs gd = 0)` by rw[loop_correct_0] >>
+  fs[rmcorr_def] >>
   rw[rmcorr_def] >>
   `INV rs` by fs[] >>
-  completeInduct_on `rs gd` >>
-  rw[] >>
-  fs[PULL_FORALL]
-
-
+  `∃n rs'. run_step m (rs,SOME q) n = (rs',exit) ∧ INV rs' ∧ rs' gd = 0` by fs[] >>
+  qexists_tac`n` >>
+  qexists_tac`rs'` >>
+  `Q rs'` by fs[] >>
+  rw[]
 QED
 
 Theorem dup_clear_correct:
