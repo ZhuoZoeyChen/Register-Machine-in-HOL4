@@ -1290,14 +1290,16 @@ Theorem rmcorr_dec:
   rmcorr m q0 P q Q
 Proof 
   rw[rmcorr_def] >> 
-  Cases_on `0 < rs r` >> 
+  Cases_on `0 < rs r` 
   >- (qabbrev_tac`rs' = rs (| r |-> rs r - 1|)` >> 
       `P rs' ⦇r ↦ rs' r + 1⦈ ` 
       by simp[Abbr`rs'`, APPLY_UPDATE_THM, UPDATE_EQ, APPLY_UPDATE_ID]
-       >> last_x_assum drule >> strip_tac >> cheat)
+       >> last_x_assum drule >> strip_tac >> map_every qexists_tac [`SUC n`, `rs''`]
+       >> rw[run_step_def, run_machine_1_def])
   >> `rs r = 0` by simp[] 
   >> first_x_assum drule_all
-  >> strip_tac >> cheat
+  >> strip_tac >> map_every qexists_tac [`SUC n`, `rs'`]
+  >> rw[run_step_def, run_machine_1_def]
 QED
 
 Theorem dup_correct:
