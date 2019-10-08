@@ -1246,36 +1246,8 @@ Proof
 QED
 
 (*
-Theorem rmcorr_dec1:
-  m.tf q0 = Dec r t e 
-∧
-  (∀rs. P rs ∧ 0 < rs r ⇒ Q (rs (| r |-> rs r - 1 |) ))
-∧ 
-  (∀rs. e ≠ t ∧ P rs ⇒ 0 < rs r)
-∧ 
-  q0 ∈ m.Q
-∧ 
-  (∀rs. e = t ⇒ (P rs ⇒ Q rs))
-
-==> rmcorr m q0 P t Q 
-Proof 
-  rw[rmcorr_def] >>
-  qexists_tac`SUC 0` >>
-  simp[run_machine_1_def, run_step_def] >>
-  rw[]
-  >- (CCONTR_TAC >> `0 < rs r` by fs[] >> fs[])
-  >> metis_tac[GREATER_DEF]
-QED
-
-
-Theorem rmcorr_inc1:
-Proof 
-QED
-*)
-
-(*
 TODO
-1. finish rmcorr_dec
+DONE 1. finish rmcorr_dec
 2. try to finish dup
 3. link_correct *)
 Theorem rmcorr_dec:
@@ -1302,6 +1274,7 @@ Proof
   >> rw[run_step_def, run_machine_1_def]
 QED
 
+(*
 Theorem dup_correct:
   ∀r1 r2 r3 RS. 
   r1 ≠ r2 ∧ r1 ≠ r3 ∧ r2 ≠ r3 ∧ RS r3 = 0
@@ -1310,26 +1283,32 @@ Theorem dup_correct:
 Proof 
   rw[] >>
   irule rmcorr_trans >>
+(* loop1 : clear r2 
   map_every qexists_tac [`λrs'. rs'= RS (| r2 |-> 0 |)`, `1`] >> rw[] 
   >- (irule loop_correct >> simp[] >> qexists_tac`(λrs. ∀k. k ≠ r2 ⇒ rs k = RS k)` >> rw[]
       >- (rw[FUN_EQ_THM, APPLY_UPDATE_THM] >> rw[] >> rw[])
       >> irule rmcorr_dec1 >> simp[] >> rw[] >> rw[APPLY_UPDATE_THM])
   >> irule rmcorr_trans >>
-  map_every qexists_tac [`λrs'. rs'= RS (| r1 |-> 0 ; r2 |-> RS r1 ; r3 |-> RS r1|)`, `4`]
-  >> rw[] 
+
+(* loop2: transfer r1 into r2 and r3 
+  map_every qexists_tac [`λrs'. rs'= RS (| r1 |-> 0 ; r2 |-> RS r1 ; r3 |-> RS r1|)`, `4`] >> rw[] 
   >- (irule loop_correct >> simp[] 
       >> qexists_tac`(λrs. rs r1 + rs r2 = RS r1 ∧ rs r2 = rs r3 ∧ ∀k. k ∉ {r1; r2; r3} ⇒ rs k = RS k)` 
-      >> rw[]
-      >- rw[APPLY_UPDATE_THM] 
-      >- rw[APPLY_UPDATE_THM] 
-      >- rw[APPLY_UPDATE_THM] 
+      >> rw[APPLY_UPDATE_THM] 
       >- (rw[FUN_EQ_THM, APPLY_UPDATE_THM] >> rw[] >> rw[])
-      >> irule rmcorr_trans
-      irule rmcorr_dec1 >> simp[] >> rw[] >> rw[APPLY_UPDATE_THM])
-  >> irule rmcorr_trans >>
+      >> irule rmcorr_dec >> rw[] 
 
+      >- ()
+      >>
+
+      >> irule rmcorr_trans >> rw[]
+     >> simp[] >> rw[] >> rw[APPLY_UPDATE_THM])
+(* loop3: restore r1 by transfering r3 into r1 
+  >> irule rmcorr_trans >> 
   
 QED
+
+*)
 
 (*
 val dup_def = Define `
@@ -1350,6 +1329,7 @@ val dup_def = Define `
 `;
 *)
 
+(*
 
 Theorem link_correct:
   ∀m1 m2 i. RUN (link m1 m2) i = run_machine m2 (rsf m1 i, SOME m2.q0)
@@ -1394,5 +1374,7 @@ Proof
   rw[Cn_def] >>
 
 QED
+
+*)
 
 val _ = export_theory ()
