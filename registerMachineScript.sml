@@ -1274,7 +1274,7 @@ Proof
   >> rw[run_step_def, run_machine_1_def]
 QED
 
-(*
+
 Theorem dup_correct:
   ∀r1 r2 r3 RS. 
   r1 ≠ r2 ∧ r1 ≠ r3 ∧ r2 ≠ r3 ∧ RS r3 = 0
@@ -1283,15 +1283,58 @@ Theorem dup_correct:
 Proof 
   rw[] >>
   irule rmcorr_trans >>
-(* loop1 : clear r2 
+(* loop1 : clear r2 *)
   map_every qexists_tac [`λrs'. rs'= RS (| r2 |-> 0 |)`, `1`] >> rw[] 
-  >- (irule loop_correct >> simp[] >> qexists_tac`(λrs. ∀k. k ≠ r2 ⇒ rs k = RS k)` >> rw[]
+  >- (irule rmcorr_dec >> simp[] >> rw[]
+      >- (rw[rmcorr_def] >> qexists_tac`0` >> 
+          rw[run_step_def] >> rw[FUN_EQ_THM, APPLY_UPDATE_THM] >> rw[] >> rw[])
+      >> irule loop_correct >> simp[] >> qexists_tac`(λrs. ∀k. k ≠ r2 ⇒ rs k = RS k)` 
+      >> rw[] 
+      >- rw[APPLY_UPDATE_THM] 
       >- (rw[FUN_EQ_THM, APPLY_UPDATE_THM] >> rw[] >> rw[])
-      >> irule rmcorr_dec1 >> simp[] >> rw[] >> rw[APPLY_UPDATE_THM])
+      >> rw[rmcorr_def] >> map_every qexists_tac [`1`, `rs (| r2 |-> rs r2 - 1 |)`] 
+      >> rw[] 
+      >- (`run_step (dup r1 r2 r3) (rs,SOME 0) (SUC 0) = (rs⦇r2 ↦ rs r2 − 1⦈,SOME 0)` suffices_by simp[GSYM ADD1] 
+        >> rw[run_step_def, run_machine_1_def])
+      >- rw[APPLY_UPDATE_THM]
+      >> rw[APPLY_UPDATE_THM]
+      )
   >> irule rmcorr_trans >>
+(* loop2: transfer r1 into r2 and r3 *)
+  map_every qexists_tac [`λrs'. rs'= RS (| r1 |-> 0 ; r2 |-> RS r1 ; r3 |-> RS r1|)`, `4`] >> rw[]
+  >- (irule rmcorr_dec >> simp[] >> rw[]
+      >- (rw[rmcorr_def] >> qexists_tac`0` >> 
+          rw[run_step_def] >> rw[FUN_EQ_THM, APPLY_UPDATE_THM] >> rw[] >> 
+          `RS r1 = 0` suffices_by simp[] >> `RS⦇r2 ↦ 0⦈ r1 = RS r1` by fs[APPLY_UPDATE_THM] 
+          >> simp[])
+      >- (`RS r1 = 0` suffices_by simp[] >> `RS⦇r2 ↦ 0⦈ r1 = RS r1` by fs[APPLY_UPDATE_THM] 
+          >> simp[])
+      >> `RS r1 = 0` suffices_by simp[] >> `RS⦇r2 ↦ 0⦈ r1 = RS r1` by fs[APPLY_UPDATE_THM] 
+          >> simp[]
 
-(* loop2: transfer r1 into r2 and r3 
-  map_every qexists_tac [`λrs'. rs'= RS (| r1 |-> 0 ; r2 |-> RS r1 ; r3 |-> RS r1|)`, `4`] >> rw[] 
+      >> irule loop_correct >> simp[] >> qexists_tac`(λrs. rs r1 + rs r2 = RS r1 ∧ rs r2 = rs r3 ∧ ∀k. k ∉ {r1; r2; r3} ⇒ rs k = RS k)` 
+      >> rw[] 
+      >- rw[APPLY_UPDATE_THM] 
+      >- (rw[FUN_EQ_THM, APPLY_UPDATE_THM] >> rw[] >> rw[])
+      >> rw[rmcorr_def] >> map_every qexists_tac [`1`, `rs (| r2 |-> rs r2 - 1 |)`] 
+      >> rw[] 
+      >- (`run_step (dup r1 r2 r3) (rs,SOME 0) (SUC 0) = (rs⦇r2 ↦ rs r2 − 1⦈,SOME 0)` suffices_by simp[GSYM ADD1] 
+        >> rw[run_step_def, run_machine_1_def])
+      >- rw[APPLY_UPDATE_THM]
+      >> rw[APPLY_UPDATE_THM]
+      )
+  >>
+
+
+      (
+      >- (rw[FUN_EQ_THM, APPLY_UPDATE_THM] >> rw[] >> rw[])
+      >> irule rmcorr_dec >> simp[] >> rw[] 
+      >- (rw[] >> metis_tac[])
+      >> rw[APPLY_UPDATE_THM]
+     )
+  >> irule rmcorr_trans 
+
+  >> map_every qexists_tac [`λrs'. rs'= RS (| r1 |-> 0 ; r2 |-> RS r1 ; r3 |-> RS r1|)`, `4`] >> rw[] 
   >- (irule loop_correct >> simp[] 
       >> qexists_tac`(λrs. rs r1 + rs r2 = RS r1 ∧ rs r2 = rs r3 ∧ ∀k. k ∉ {r1; r2; r3} ⇒ rs k = RS k)` 
       >> rw[APPLY_UPDATE_THM] 
@@ -1303,12 +1346,12 @@ Proof
 
       >> irule rmcorr_trans >> rw[]
      >> simp[] >> rw[] >> rw[APPLY_UPDATE_THM])
-(* loop3: restore r1 by transfering r3 into r1 
+(* loop3: restore r1 by transfering r3 into r1 *)
   >> irule rmcorr_trans >> 
   
 QED
 
-*)
+
 
 (*
 val dup_def = Define `
