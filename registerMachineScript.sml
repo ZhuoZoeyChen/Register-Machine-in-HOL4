@@ -1175,12 +1175,6 @@ Proof
   >> rw[Once WHILE, run_machine_1_def] >> rw[APPLY_UPDATE_THM] 
 QED
 
-(*
-Definition rmcorr_def:
-  rmcorr m q P qf Q = 
-    ∀rs. P rs ⇒ ∃n rs'. (run_step m (rs, SOME q) n = (rs', qf)) ∧ Q rs' 
-End
-*)
 
 Theorem loop_correct_0:
 ∀ m q INV gd body exit.
@@ -1339,33 +1333,15 @@ QED
 
 
 
-(*
-val dup_def = Define `
-  dup r1 r2 r3= <| 
-    Q := {0;1;2;3;4;5};
-    tf := (λs. case s of 
-            | 0 => Dec r2 (SOME 0) (SOME 1)
-            | 1 => Dec r1 (SOME 2) (SOME 4)
-            | 2 => Inc r2 (SOME 3)
-            | 3 => Inc r3 (SOME 1) 
-            | 4 => Dec r3 (SOME 5) NONE
-            | 5 => Inc r1 (SOME 4)
-            );
-    q0 := 0;
-    In := [r1];
-    Out := r2;
-  |>
-`;
-*)
-
-(*
-
 Theorem link_correct:
-  ∀m1 m2 i. RUN (link m1 m2) i = run_machine m2 (rsf m1 i, SOME m2.q0)
+  rmcorr m1 m1.q0 P NONE Q ∧ rmcorr m2 m2.q0 Q NONE R ⇒ rmcorr (link m1 m2) m1.q0 P NONE R
 Proof
+  rw[] 
+  >> rw[rmcorr_trans]
   
 QED
 
+(*
 
 Theorem mrInst1_correct:
   ∀mnum. correct1 f m ⇒ correct1 f (mrInst mnum m)
