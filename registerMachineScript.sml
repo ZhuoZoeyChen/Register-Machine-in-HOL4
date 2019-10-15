@@ -1331,14 +1331,65 @@ Proof
   >> rw[APPLY_UPDATE_THM]
 QED
 
+Theorem link_run_step_m1:
+  ∀p q m m' rs rs'. 
+  (wfrm m ⇒
+  (run_step m (rs, SOME q) n = (rs', SOME p) ⇒ run_step (link m m') (rs, SOME q) n = (rs', SOME p))
+  ∧
+  (run_step m (rs, SOME q) n = (rs', NONE) ⇒ run_step (link m m') (rs, SOME q) n = (rs', SOME m'.q0))
+  )
+Proof 
+  simp[run_step_def, wfrm_def] 
+  >- Induct_on `n` 
+      >> rw[run_step_def] 
+      >> 
 
+QED
+
+Theorem link_machine_m1:
+  ∀q m m' rs rs'. 
+  (wfrm m ⇒ 
+  (run_machine_1 m (rs,SOME q) = run_machine_1 (link m m') (rs, SOME q))  
+  ∨
+  ((run_machine_1 m (rs,SOME q) = (rs', NONE)) ∧ (run_machine_1 (link m m') (rs, SOME q) = (rs', m'.q0)))
+  )
+Proof
+  rw[link_def] >>
+  rw[run_machine_1_def] >>
+
+QED
 
 Theorem link_correct:
-  rmcorr m1 m1.q0 P NONE Q ∧ rmcorr m2 m2.q0 Q NONE R ⇒ rmcorr (link m1 m2) m1.q0 P NONE R
+  wfrm m1 ∧ wfrm m2 ∧ rmcorr m1 m1.q0 P NONE Q ∧ rmcorr m2 m2.q0 Q NONE R ⇒ rmcorr (link m1 m2) m1.q0 P NONE R
 Proof
-  rw[] 
-  >> rw[rmcorr_trans]
-  
+  rw[link_def, wfrm_def] >>
+  irule rmcorr_trans >>
+  map_every qexists_tac [`Q`,`m2.q0`] >>
+  rw[rmcorr_def] >> fs[rmcorr_def] 
+  >-(`∃n rs'. run_step m1 (rs,SOME m1.q0) n = (rs',NONE) ∧ Q rs'` by fs[] >>
+    map_every qexists_tac [`n`, `rs'`] >>
+    Induct_on `n` 
+    >- rw[run_step_def] 
+    >> 
+    `run_machine_1 m1 (rs,SOME m1.q0) = (rs'', q)`  by simp[]
+    rw[run_machine_1_def] >>
+    fs[run_machine_1_def]
+    Cases_on `end_link (m1.tf m1.q0) m2.q0 = Inc r so` 
+    >- (rw[] >> rw[run_machine_def, linktf_def] >>
+      Induct_on`n` 
+      >- (rw[])
+      >> )
+    >>
+
+    rw[linktf_def]
+    )
+
+
+    rw[linktf_def] >> 
+    rw[run_step_def] >> 
+
+  `∃n2 rs2'. run_step m2 (rs,SOME m2.q0) n2 = (rs2',NONE) ∧ R rs2'` by fs[] >>
+
 QED
 
 (*
