@@ -1555,7 +1555,7 @@ Proof
              `run_step (mrInst mnum M) ((λr. if nfst r = mnum then rs (nsnd r) else 0)⦇mnum ⊗ R ↦ rs R + 1⦈,SOME x) n 
                 = run_step (mrInst mnum M) ((λr. if nfst r = mnum then rs⦇R ↦ rs R + 1⦈ (nsnd r) else 0),SOME x) n` 
                  by fs[] >> rw[]) 
-        >> rw[FUN_EQ_THM, APPLY_UPDATE_THM] 
+        >> rw[FUN_EQ_THM, APPLY_UPDATE_THM] >>
         Cases_on`nfst r = mnum` 
         >- (rw[] 
             >- (fs[numpairTheory.npair])
@@ -1563,7 +1563,58 @@ Proof
             >> `nsnd r = R` by metis_tac[]
             >> fs[])
         >> rw[] >> fs[numpairTheory.nfst_npair])
-  >> 
+  (* Dec *)
+  >> rw[rInst_def, rs_mrInst_def] >> fs[rInst_def] >> rfs[] >> rename [`Dec R sopt1 sopt2`] 
+      >> qabbrev_tac `rs0 = rs⦇R ↦ rs R - 1⦈` 
+      (* sopt1 *)
+      >- (Cases_on `sopt1`
+       (* from NONE *)
+       >- (rw[run_step_def]
+          >- (fs[run_step_def] >> rw[Abbr`rs0`] >> rw[APPLY_UPDATE_THM, FUN_EQ_THM] >> 
+              Cases_on `npair mnum R = r` >> rw[] >> fs[numpairTheory.npair])
+          >> fs[])
+       (* from SOME *)
+       >> `action_states (Dec R (SOME x) sopt2) ⊆ M.Q` by metis_tac[wfrm_def, opt_to_set_def] 
+       >> fs[opt_to_set_def, action_states_def] 
+       >> `run_step M (rs0,SOME x) n = (rs',opt) ⇒ 
+          run_step (mrInst mnum M) (rs_mrInst rs0 mnum,SOME x) n =
+            (rs_mrInst rs' mnum,opt)` by fs[] 
+       >> `run_step (mrInst mnum M) (rs_mrInst rs0 mnum,SOME x) n =
+          (rs_mrInst rs' mnum,opt)`by fs[]  
+       >> fs[rs_mrInst_def] 
+       >> rw[Abbr`rs0`] 
+       >> `(λr. if nfst r = mnum then rs⦇R ↦ rs R - 1⦈ (nsnd r) else 0) 
+           = (λr. if nfst r = mnum then rs (nsnd r) else 0)⦇mnum ⊗ R ↦ rs R - 1⦈` 
+           suffices_by (rw[] >> 
+             `(λr. if nfst r = mnum then rs (nsnd r) else 0)⦇mnum ⊗ R ↦ rs R - 1⦈ =
+                (λr. if nfst r = mnum then rs⦇R ↦ rs R - 1⦈ (nsnd r) else 0) ` by fs[] >>
+             `run_step (mrInst mnum M) ((λr. if nfst r = mnum then rs (nsnd r) else 0)⦇mnum ⊗ R ↦ rs R - 1⦈,SOME x) n 
+                = run_step (mrInst mnum M) ((λr. if nfst r = mnum then rs⦇R ↦ rs R - 1⦈ (nsnd r) else 0),SOME x) n` 
+                 by fs[] >> rw[]) 
+        >> rw[FUN_EQ_THM, APPLY_UPDATE_THM] >>
+        Cases_on`nfst r = mnum` 
+        >- (rw[] 
+            >- (fs[numpairTheory.npair])
+            >> `nsnd (nfst r ⊗ R) = R` by fs[numpairTheory.nsnd_npair]
+            >> `nsnd r = R` by metis_tac[]
+            >> fs[])
+        >> rw[] >> fs[numpairTheory.nfst_npair])
+      (* sopt2 *)
+      >> Cases_on `sopt2`
+       (* from NONE *)
+       >- (rw[run_step_def]
+          >- (fs[run_step_def] >> rw[Abbr`rs0`] >> rw[APPLY_UPDATE_THM, FUN_EQ_THM] >> 
+              Cases_on `npair mnum R = r` >> rw[] >> fs[numpairTheory.npair])
+          >> fs[])
+       (* from SOME *)
+       >> `action_states (Dec R sopt1 (SOME x)) ⊆ M.Q` by metis_tac[wfrm_def, opt_to_set_def] 
+       >> fs[opt_to_set_def, action_states_def] 
+       >> `run_step M (rs,SOME x) n = (rs',opt) ⇒ 
+          run_step (mrInst mnum M) (rs_mrInst rs mnum,SOME x) n =
+            (rs_mrInst rs' mnum,opt)` by fs[] 
+       >> `run_step (mrInst mnum M) (rs_mrInst rs mnum,SOME x) n =
+          (rs_mrInst rs' mnum,opt)`by fs[]  
+       >> fs[rs_mrInst_def] 
 QED 
 
 (*
