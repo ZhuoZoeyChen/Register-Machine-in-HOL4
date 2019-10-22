@@ -6,6 +6,7 @@ open indexedListsTheory;
 open numeralTheory;
 open primrecfnsTheory;
 open listTheory;
+open mp_then;
 
 val _ = new_theory "registerMachine";
 
@@ -17,6 +18,22 @@ Datatype:
   action = Inc num (state option) | Dec num (state option) (state option) 
 End
 
+(* regOf :: action -> reg num *)
+Definition regOf_def[simp]:
+  regOf (Inc r _) = r ∧ regOf (Dec r _ _) = r
+End
+
+(* inst_Val :: action -> value -> updated value *)
+Definition inst_Val_def[simp]:
+  inst_Val (Inc _ _) v = v + 1 /\
+  inst_Val (Dec _ _ _) v = if v = 0 then 0 else v - 1
+End
+
+(* inst_Dest :: action -> value -> next state *)
+Definition inst_Dest_def[simp]:
+  inst_Dest (Inc _ s) v = s ∧
+  inst_Dest (Dec _ s1 s2) v = if v = 0 then s2 else s1
+End
 
 (* 
    ---------------------------------- 
@@ -62,6 +79,17 @@ val run_machine_1_def = Define `
     | Dec r so1 so2 => if rs r > 0 then ( rs (| r |-> rs r - 1 |) , so1)
                           else ( rs, so2))
 `;
+
+Theorem run_machine_1_alt:
+  (run_machine_1 m (rs, NONE) = (rs, NONE)) ∧
+   (run_machine_1 m (rs, SOME s) = if s ∉ m.Q then (rs, NONE)
+     else let i = m.tf s;
+              r = regOf i
+          in (rs(|r |-> inst_Val i (rs r)|), inst_Dest i (rs r)))
+Proof 
+  rw[run_machine_1_def] >> Cases_on`m.tf s` >> rw[] >> fs[] >>
+  rw[APPLY_UPDATE_THM, FUN_EQ_THM] >> rw[] >> rw[]
+QED
 
 val run_machine_def = Define `
   (run_machine m = WHILE (λ(rs, so). so ≠ NONE) (run_machine_1 m)) 
@@ -321,11 +349,11 @@ val upd_def = Define `
   (upd (SOME d0) d = SOME d0)
 `;
 
-val end_link_def = Define `
+Definition end_link_def[simp]:
   (end_link (Inc q d0) d = Inc q (upd d0 d))
     ∧
   (end_link (Dec q d1 d2) d = Dec q (upd d1 d) (upd d2 d))
-`;
+End
 
 
 val linktf_def = Define`
@@ -1369,6 +1397,36 @@ Proof
   rw[run_step_def] 
 QED
 
+Theorem regOf_end_link[simp]:
+  regOf (end_link ins s) = regOf ins
+Proof 
+  Cases_on`ins` >> simp[end_link_def]
+QED
+
+
+Theorem  inst_Val_end_link[simp]:
+  inst_Val (end_link ins s) v = inst_Val ins v
+Proof 
+  Cases_on`ins` >> simp[end_link_def]
+QED
+
+Theorem inst_Dest_end_link[simp]:
+  inst_Dest (end_link ins d) v = 
+    case inst_Dest ins v of 
+        SOME d' => SOME d'
+      | NONE => SOME d
+Proof 
+  Cases_on`ins` >> rw[end_link_def] >> rename [`upd opt d`] >> 
+  Cases_on`opt` >> simp[upd_def]
+QED 
+
+Theorem inst_Dest_wf:
+  wfrm m ∧ q ∈ m.Q ∧ inst_Dest (m.tf q) v = SOME q' ⇒ q' ∈ m.Q
+Proof 
+  Cases_on`m.tf q` >> rw[wfrm_def] >> first_x_assum drule 
+  >> simp[action_states_def, opt_to_set_def]
+QED
+
 
 Theorem link_run_step_m1ToSOME:
   ∀p q m m' rs rs'. 
@@ -1380,20 +1438,10 @@ Proof
   >> rw[run_step_def] 
   (* k, suc k *)
   (* SOME to SOME *)
-  >> fs[run_machine_1_def] >> rw[link_tf] >> fs[] >> Cases_on `m.tf q` >> rfs[] 
-  (* Inc *)
-  >- (fs[] >> rw[end_link_def] >> rename [`m.tf q = Inc r opt`] >> 
-      Cases_on `opt` >> fs[upd_def] >> rename [` m.tf q = Inc r (SOME q1)`] >> 
-      `action_states (Inc r (SOME q1)) ⊆ m.Q` by metis_tac[wfrm_def] >>
-      fs[action_states_def, opt_to_set_def])
-  (* Dec *)
-  >>  fs[] >> rw[end_link_def] >> fs[] >> rename [`m.tf q = Dec r opt1 opt2`]
-  >- (Cases_on `opt1` >> fs[upd_def] >> rename [` m.tf q = Dec r (SOME q1) _`] >> 
-      `action_states (Dec r (SOME q1) opt2) ⊆ m.Q` by metis_tac[wfrm_def] >>
-      fs[action_states_def, opt_to_set_def])
-  >> Cases_on `opt2` >> fs[upd_def] >> rename [` m.tf q = Dec r opt1 (SOME q2)`] >> 
-      `action_states (Dec r opt1 (SOME q2)) ⊆ m.Q` by metis_tac[wfrm_def] >>
-      fs[action_states_def, opt_to_set_def]
+  >> fs[run_machine_1_alt] >> rw[link_tf] >> rfs[] >> 
+  Cases_on `inst_Dest (m.tf q) (rs (regOf (m.tf q)))` >> fs[]
+  >> first_x_assum irule >> simp[] 
+  >> metis_tac[inst_Dest_wf]
 QED
 
 
@@ -1406,8 +1454,10 @@ Proof
   (* 0 step *)
   >> rw[run_step_def] 
   (* SOME to NONE*)
-  >> fs[run_machine_1_def] >> rw[link_tf] >> fs[]
-  >> rfs[] >> Cases_on `m.tf q` >> fs[] 
+  >> fs[run_machine_1_alt] >> rw[link_tf] >> rfs[]
+  >> Cases_on `inst_Dest (m.tf q) (rs (regOf (m.tf q)))` >> fs[] 
+  >- 
+  >>
   (* Inc *)
   >- (fs[] >> rw[end_link_def] >> rename [`m.tf q = Inc r opt`] >> Cases_on `opt` >> fs[]
       (* Option state: NONE *)
@@ -1512,57 +1562,46 @@ Proof
   rw[mrInst_def]
 QED
 
-Definition rs_mrInst_def:
-  rs_mrInst rs mnum = (λr. if nfst r = mnum then rs (nsnd r) else 0)
+Definition rs_mrInst_B4_def:
+  rs_mrInst_B4 rsm rs mnum = (∀q. (rsm (mnum *, q) = rs q))
+End 
+
+Definition rs_mrInst_Aft_def:
+  rs_mrInst_Aft rsm' rsm rs' mnum = 
+  ((∀q. rsm' (mnum*, q)= rs' q) ∧ (∀r. nfst r ≠ mnum ⇒ (rsm' r = rsm r)))
 End 
 
 Theorem mrInst1_run_step:
-  ∀q n rs rs' M mnum. 
-  wfrm M ∧ q ∈ M.Q ⇒
+  ∀q n rs rs' M mnum rsm rsm'. 
+  wfrm M ∧ q ∈ M.Q ∧ rs_mrInst_B4 rsm rs mnum ∧ rs_mrInst_Aft rsm' rsm rs' mnum ⇒
   (run_step M (rs, SOME q) n = (rs', opt) ⇒ 
-  run_step (mrInst mnum M) (rs_mrInst rs mnum, SOME q) n = (rs_mrInst rs' mnum, opt))
+  run_step (mrInst mnum M) (rsm, SOME q) n = (rsm', opt))
 Proof 
   Induct_on`n` >>
   (* 0 Case *)
   rw[run_step_def] >>
   (* Inductive Case *)
-  fs[run_machine_1_def] >> 
+  fs[run_machine_1_def, rs_mrInst_B4_def, rs_mrInst_Aft_def] 
+  >- (rw[FUN_EQ_THM] >> metis_tac[numpairTheory.npair_cases, numpairTheory.nfst_npair]) 
+  >> rfs[] >>
   Cases_on `M.tf q` 
   (* Inc *)
   >- (rw[rInst_def, rs_mrInst_def] >> fs[rInst_def] >> rfs[] >> rename [`Inc R sopt`] 
       >> qabbrev_tac `rs0 = rs⦇R ↦ rs R + 1⦈` >> 
        Cases_on `sopt`
        (* from NONE *)
-       >- (rw[run_step_def]
-          >- (fs[run_step_def] >> rw[Abbr`rs0`] >> rw[APPLY_UPDATE_THM, FUN_EQ_THM] >> 
-              Cases_on `npair mnum R = r` >> rw[] >> fs[numpairTheory.npair])
-          >> fs[])
+       >- (fs[] >> rw[Abbr`rs0`] >> rw[APPLY_UPDATE_THM, FUN_EQ_THM] >> 
+           metis_tac[numpairTheory.npair_cases, numpairTheory.nfst_npair, APPLY_UPDATE_THM]) 
        (* from SOME *)
-       >> `action_states (Inc R (SOME x)) ⊆ M.Q` by metis_tac[wfrm_def, opt_to_set_def] 
+       >> rename [`Inc R (SOME q')`]
+       >> `action_states (Inc R (SOME q')) ⊆ M.Q` by metis_tac[wfrm_def, opt_to_set_def] 
        >> fs[opt_to_set_def, action_states_def] 
-       >> `run_step M (rs0,SOME x) n = (rs',opt) ⇒ 
-          run_step (mrInst mnum M) (rs_mrInst rs0 mnum,SOME x) n =
-            (rs_mrInst rs' mnum,opt)` by fs[] 
-       >> `run_step (mrInst mnum M) (rs_mrInst rs0 mnum,SOME x) n =
-          (rs_mrInst rs' mnum,opt)`by fs[]  
-       >> fs[rs_mrInst_def] 
-       >> rw[Abbr`rs0`] 
-       >> `(λr. if nfst r = mnum then rs⦇R ↦ rs R + 1⦈ (nsnd r) else 0) 
-           = (λr. if nfst r = mnum then rs (nsnd r) else 0)⦇mnum ⊗ R ↦ rs R + 1⦈` 
-           suffices_by (rw[] >> 
-             `(λr. if nfst r = mnum then rs (nsnd r) else 0)⦇mnum ⊗ R ↦ rs R + 1⦈ =
-                (λr. if nfst r = mnum then rs⦇R ↦ rs R + 1⦈ (nsnd r) else 0) ` by fs[] >>
-             `run_step (mrInst mnum M) ((λr. if nfst r = mnum then rs (nsnd r) else 0)⦇mnum ⊗ R ↦ rs R + 1⦈,SOME x) n 
-                = run_step (mrInst mnum M) ((λr. if nfst r = mnum then rs⦇R ↦ rs R + 1⦈ (nsnd r) else 0),SOME x) n` 
-                 by fs[] >> rw[]) 
-        >> rw[FUN_EQ_THM, APPLY_UPDATE_THM] >>
-        Cases_on`nfst r = mnum` 
-        >- (rw[] 
-            >- (fs[numpairTheory.npair])
-            >> `nsnd (nfst r ⊗ R) = R` by fs[numpairTheory.nsnd_npair]
-            >> `nsnd r = R` by metis_tac[]
-            >> fs[])
-        >> rw[] >> fs[numpairTheory.nfst_npair])
+       >> first_x_assum irule
+       >> rw[]
+       >- metis_tac[numpairTheory.npair_cases, numpairTheory.nfst_npair, APPLY_UPDATE_THM]
+       >> rw[APPLY_UPDATE_THM]
+       >> goal_assum (first_assum o mp_then (Pos last) mp_tac) 
+       >> simp[Abbr`rs0`, APPLY_UPDATE_THM])
   (* Dec *)
   >> rw[rInst_def, rs_mrInst_def] >> fs[rInst_def] >> rfs[] >> rename [`Dec R sopt1 sopt2`] 
       >> qabbrev_tac `rs0 = rs⦇R ↦ rs R - 1⦈` 
@@ -1627,18 +1666,32 @@ Definition mrInst_P:
 End 
 *)
 
-Definition liftP:
+Definition liftP_def:
   liftP n P = (λrs. P (λr. rs (npair n r)))
 End 
 
 (* rmcorr M q P opt Q ==> rmcorr (mrInst n M) q (λrs. (P (λr. rs (nsnd r))) ∧ (λr. nfst r = mnum)) opt (λrs. Q (λr. rs (nsnd r)))*)
 Theorem mrInst1_correct:
- rmcorr M q P opt Q ==> rmcorr (mrInst n M) q (liftP n P) opt (liftP n Q)
+ (wfrm M ∧ q ∈ M.Q) ⇒
+  (rmcorr M q P opt Q ⇒ rmcorr (mrInst n M) q (liftP n P) opt (liftP n Q))
 Proof
-  rw[] >> 
-
-  rw[mrInst_def, rmcorr_def] >>
-  
+  rw[rmcorr_def] >> fs[liftP_def] >> drule mrInst1_run_step >> rw[] >> 
+  fs[rs_mrInst_def] >> rename [`P (λr. rs (mnum ⊗ r))`] >> 
+  qabbrev_tac `rs0 = (λr. rs (mnum ⊗ r))` >>
+  `∃n rs'.run_step M (rs0,SOME q) n = (rs',opt) ∧ Q rs'` by fs[] >>
+  ` run_step (mrInst mnum M)
+    ((λr. if nfst r = mnum then rs0 (nsnd r) else 0),SOME q) n =
+      ((λr. if nfst r = mnum then rs' (nsnd r) else 0),opt)` by fs[] >>
+  map_every qexists_tac [`n` ,`(λr. if nfst r = mnum then rs' (nsnd r) else 0)`] >>
+  fs[Abbr`rs0`] >> 
+  `(λr. if nfst r = mnum then rs (mnum ⊗ nsnd r) else 0) = rs`
+    by (rw[FUN_EQ_THM] >>
+        Cases_on `nfst r = mnum` >> fs[]
+         >- (`mnum = nfst r` by fs[] >> metis_tac[numpairTheory.npair])
+         >> rfs[]
+      )
+  rw[] >> drule mrInst1_run_step >> rw[rmcorr_def] >> fs[rmcorr_def]
+  rw[rmcorr_def, liftP_def] >> metis_tac[mrInst1_run_step]
 QED
 
 (*
@@ -1673,5 +1726,8 @@ Proof
 QED
 *)
 
+(* TODO 
+1. Rewrite exp and fac proof etc with the loop theorem 
+2. *)
 
 val _ = export_theory ()
