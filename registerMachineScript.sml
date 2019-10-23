@@ -1482,24 +1482,16 @@ Proof
   (* 0 step *)
   >> rw[run_step_def] 
   (* k, suc k *)
-  >> fs[run_machine_1_def] >> rw[link_tf] >> fs[] 
+  >> fs[run_machine_1_alt] >> rw[link_tf] >> fs[] 
+  (* q in m.Q and q in m'.Q *)
   >- (fs[pred_setTheory.DISJOINT_DEF, pred_setTheory.EXTENSION] >> metis_tac[])
+  (* q not in m.Q and q in m'.Q *)
   >> rfs[]
-  >> Cases_on `m'.tf q` >> rfs[] 
-  (* Inc *)
-  >- (fs[] >> rw[end_link_def] >> rename [`m'.tf q = Inc r opt`] >> 
-      Cases_on `opt` >> fs[upd_def] >> rename [` m'.tf q = Inc r (SOME q1)`] >> 
-      `action_states (Inc r (SOME q1)) ⊆ m'.Q` by metis_tac[wfrm_def] >>
-      fs[action_states_def, opt_to_set_def])
-  (* Dec *)
-  >>  fs[] >> rw[end_link_def] >> fs[] >> rename [`m'.tf q = Dec r opt1 opt2`]
-  >- (Cases_on `opt1` >> fs[upd_def] >> rename [` m'.tf q = Dec r (SOME q1) _`] >> 
-      `action_states (Dec r (SOME q1) opt2) ⊆ m'.Q` by metis_tac[wfrm_def] >>
-      fs[action_states_def, opt_to_set_def])
-  >> Cases_on `opt2` >> fs[upd_def] >> rename [` m'.tf q = Dec r opt1 (SOME q2)`] >> 
-      `action_states (Dec r opt1 (SOME q2)) ⊆ m'.Q` by metis_tac[wfrm_def] >>
-      fs[action_states_def, opt_to_set_def]
-QED
+  >> qabbrev_tac `rs0 = rs⦇regOf (m'.tf q) ↦ inst_Val (m'.tf q) (rs (regOf (m'.tf q)))⦈`
+  >> Cases_on `inst_Dest (m'.tf q) (rs (regOf (m'.tf q)))` >> fs[]   (* q0 = NONE *)
+  (* q0 = SOME _ *)
+  >> first_x_assum irule >> simp[]
+  >> metis_tac[inst_Dest_wf]
 
 
 Theorem link_m1end:
