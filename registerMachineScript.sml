@@ -1492,6 +1492,7 @@ Proof
   (* q0 = SOME _ *)
   >> first_x_assum irule >> simp[]
   >> metis_tac[inst_Dest_wf]
+QED
 
 
 Theorem link_m1end:
