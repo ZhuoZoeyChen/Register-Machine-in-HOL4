@@ -1127,8 +1127,8 @@ Proof
 QED
 
 Definition rmcorr_def:
-  rmcorr m q P qf Q = 
-    ∀rs. P rs ⇒ ∃n rs'. (run_step m (rs, SOME q) n = (rs', qf)) ∧ Q rs' 
+  rmcorr M q P qf Q = 
+    ∀rs. P rs ⇒ ∃n rs'. (run_step M (rs, SOME q) n = (rs', qf)) ∧ Q rs' 
 End
 
 Definition rm_ends_def:
@@ -1611,16 +1611,6 @@ Proof
   >> metis_tac[inst_Dest_wf]
 QED
 
-(*
-Definition mrInst_rs:
-  mrInst_rs mnum rs = (λr. if nfst r = mnum then rs (nsnd r) else 0)
-End 
-
-Definition mrInst_P:
-  (mrInst_P mnum P) (mrInst_rs mnum rs) = P rs 
-End 
-*)
-
 Definition liftP_def:
   liftP n P = (λrs. P (λr. rs (npair n r)))
 End 
@@ -1646,6 +1636,68 @@ Proof
   >> `rs' = (λr. rs' r)` by metis_tac[FUN_EQ_THM]
   >> metis_tac[]
 QED
+
+Definition npair_opt_def:
+  npair_opt mnum NONE = NONE ∧
+  npair_opt mnum (SOME q) = SOME (npair mnum q)
+End 
+
+Theorem regOf_msInst[simp]:
+  regOf ((msInst mnum M).tf (mnum ⊗ q)) = regOf (M.tf q)
+Proof
+  rw[msInst_def] >>
+  Cases_on `M.tf q` >>
+  metis_tac[regOf_def, sInst_def]
+QED 
+
+Theorem inst_Val_msInst[simp]:
+  inst_Val ((msInst mnum M).tf (mnum ⊗ q)) v = inst_Val (M.tf q) v
+Proof 
+  rw[msInst_def] >>
+  Cases_on `M.tf q` >>
+  metis_tac[inst_Val_def, sInst_def]
+QED 
+
+Theorem inst_Dest_msInst[simp]:
+  inst_Dest ((msInst mnum M).tf (mnum ⊗ q)) v = npair_opt mnum (inst_Dest (M.tf q) v)
+Proof 
+  rw[msInst_def] >> 
+  Cases_on `M.tf q` >> rw[inst_Dest_def, sInst_def, npair_opt_def] >> fs[]
+  >> rename [`npair_opt mnum opt`]
+  >> Cases_on `opt` >>  fs[] >>  metis_tac[npair_opt_def]
+QED
+
+Theorem msInst_run_step:
+  ∀q n rs rs' M mnum. 
+  wfrm M ∧ q ∈ M.Q  ⇒
+  (run_step M (rs, SOME q) n = (rs', opt) ⇒ 
+  run_step (msInst mnum M) (rs, SOME (npair mnum q)) n = (rs', npair_opt mnum opt))
+Proof 
+  Induct_on `n` >> rw[npair_opt_def, run_step_def, run_machine_1_alt]
+  (* 0 Case *)
+  >- metis_tac[npair_opt_def]
+  (* Inductive Case *)
+  >- fs[msInst_def]  (* (mnum, q) not in new machine's Q (False) *)
+  >- fs[msInst_def] 
+  >> Cases_on `inst_Dest (M.tf q) (rs (regOf (M.tf q)))`
+  (* From NONE *)
+  >- (fs[run_step_def] >> rw[msInst_def, npair_opt_def])
+  (* From SOME *)
+  >> rw[npair_opt_def] 
+  >> first_x_assum irule 
+  >> rw[]
+  >> metis_tac[inst_Dest_wf]
+QED 
+
+Theorem msInst_correct: 
+  (wfrm M ∧ q ∈ M.Q) ⇒ 
+  (rmcorr M q P opt Q ⇒ rmcorr (msInst mnum M) (npair mnum q) P (npair_opt mnum opt) Q) 
+Proof 
+  rw[rmcorr_def] >>
+  (* Better ways to apply implications ??? *)
+  `∃n rs'. run_step M (rs,SOME q) n = (rs',opt) ∧ Q rs'` by metis_tac[] >>
+  metis_tac[msInst_run_step]
+QED 
 
 
 (*
