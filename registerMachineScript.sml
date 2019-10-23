@@ -1428,8 +1428,9 @@ Proof
 QED
 
 
+
 Theorem link_run_step_m1ToSOME:
-  ∀p q m m' rs rs'. 
+  ∀q m m' rs rs'. 
   wfrm m ∧ wfrm m' ∧ DISJOINT m.Q m'.Q ∧ q ∈ m.Q ⇒
   (run_step m (rs, SOME q) n = (rs', SOME p) ⇒ run_step (link m m') (rs, SOME q) n = (rs', SOME p))
 Proof 
@@ -1446,7 +1447,7 @@ QED
 
 
 Theorem link_run_step_m1_ToNONE:
- ∀p q m m' rs rs'. 
+ ∀q m m' rs rs'. 
   wfrm m ∧ wfrm m' ∧ DISJOINT m.Q m'.Q ∧ q ∈ m.Q ⇒
   (run_step m (rs, SOME q) n = (rs', NONE) ⇒ ∃n'. n' ≤ n ∧ run_step (link m m') (rs, SOME q) n' = (rs', SOME m'.q0))
 Proof 
@@ -1456,51 +1457,24 @@ Proof
   (* SOME to NONE*)
   >> fs[run_machine_1_alt] >> rw[link_tf] >> rfs[]
   >> Cases_on `inst_Dest (m.tf q) (rs (regOf (m.tf q)))` >> fs[] 
-  >- 
-  >>
-  (* Inc *)
-  >- (fs[] >> rw[end_link_def] >> rename [`m.tf q = Inc r opt`] >> Cases_on `opt` >> fs[]
-      (* Option state: NONE *)
-      >- (qexists_tac `SUC 0` >> rw[run_step_def] >> rw[link_tf, run_machine_1_def, end_link_def] >> 
-          fs[upd_def])
-      (* Option state: SOME *)
-      >> rename [`m.tf q = Inc r (SOME q1)`] >> 
-         `action_states (Inc r (SOME q1)) ⊆ m.Q` by metis_tac[wfrm_def] >>
-         fs[action_states_def, opt_to_set_def] >> 
-         first_x_assum (drule_all_then (qx_choose_then `p` strip_assume_tac))  >> 
-         qexists_tac `SUC p` >>
-         simp[run_step_def] >> simp[run_machine_1_def, link_tf, end_link_def, upd_def])
- (* Dec *)
-  >> fs[] >> rw[end_link_def] >> rename [`m.tf q = Dec r opt1 opt2`] >> 
-      Cases_on `rs r > 0` >> fs[]
-      >- (Cases_on `opt1 ` >> fs[]
-      (* Option state: NONE *)
-        >- (qexists_tac `SUC 0` >> rw[run_step_def] >> rw[link_tf, run_machine_1_def, end_link_def] >> 
-            fs[upd_def])
-        (* Option state: SOME *)
-        >> rename [`m.tf q = Dec r (SOME q1) _`] >> 
-           `action_states (Dec r (SOME q1) opt2) ⊆ m.Q` by metis_tac[wfrm_def] >>
-           fs[action_states_def, opt_to_set_def] >> 
-           first_x_assum (drule_all_then (qx_choose_then `p` strip_assume_tac))  >> 
-           qexists_tac `SUC p` >>
-           simp[run_step_def] >> simp[run_machine_1_def, link_tf, end_link_def, upd_def])
-      >> Cases_on `opt2` >> fs[]
-            (* Option state: NONE *)
-        >- (qexists_tac `SUC 0` >> rw[run_step_def] >> rw[link_tf, run_machine_1_def, end_link_def] >> 
-            fs[upd_def])
-        (* Option state: SOME *)
-        >> rename [`m.tf q = Dec r _ (SOME q2)`] >> 
-           `action_states (Dec r opt1 (SOME q2)) ⊆ m.Q` by metis_tac[wfrm_def] >>
-           fs[action_states_def, opt_to_set_def] >> 
-           first_x_assum (drule_all_then (qx_choose_then `p` strip_assume_tac))  >> 
-           qexists_tac `SUC p` >>
-           simp[run_step_def] >> simp[run_machine_1_def, link_tf, end_link_def, upd_def]
+  (* To NONE *)
+  >- (qexists_tac`SUC 0` >> rw[run_step_def] >> rw[run_machine_1_alt] >>
+      rw[APPLY_UPDATE_THM, FUN_EQ_THM] >> rw[link_tf])
+  (* To SOME *)
+  >> `∃n'. n' ≤ n ∧ run_step (m ⇨ m') (rs,SOME q) (SUC n') = (rs',SOME m'.q0)`
+         suffices_by (rw[] >> qexists_tac`SUC n'` >> rw[])
+  >> rw[run_step_def] 
+  >> rw[run_machine_1_alt, link_tf]
+  >> rename [`SOME q`, `q' ∈ m.Q`]
+  >> qabbrev_tac `rs0 = rs⦇regOf (m.tf q') ↦ inst_Val (m.tf q') (rs (regOf (m.tf q')))⦈`
+  >> first_x_assum irule >> simp[] 
+  >> metis_tac[inst_Dest_wf]
 QED 
 
 
 
 Theorem link_run_step_m2:
-  ∀p q m m' rs rs'. 
+  ∀q m m' rs rs'. 
   wfrm m ∧ wfrm m' ∧ DISJOINT m.Q m'.Q ∧ q ∈ m'.Q ⇒
   (run_step m' (rs, SOME q) n = (rs', opt) ⇒ run_step (link m m') (rs, SOME q) n = (rs', opt))
 Proof 
