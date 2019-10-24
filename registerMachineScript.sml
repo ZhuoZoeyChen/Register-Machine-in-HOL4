@@ -1267,6 +1267,18 @@ Proof
   >> rw[Once WHILE, run_machine_1_def] >> rw[APPLY_UPDATE_THM] 
 QED
 
+Theorem weak_rmcorr:
+  (∀s. P s ⇒ P' s) ∧ (∀s. Q' s ⇒ Q s) ∧ (rmcorr m q0 P' q Q') 
+==> rmcorr m q0 P q Q 
+Proof 
+  rw[rmcorr_def] >>
+  `P' rs` by fs[] >>
+  `∃n rs'. run_step m (rs,SOME q0) n = (rs',q) ∧ Q' rs'` by fs[] >>
+  `Q rs'` by fs[] >>
+  qexists_tac `n` >> 
+  qexists_tac `rs'` >>
+  rw[]
+QED
 
 Theorem loop_correct_0:
 ∀ m q INV gd body exit.
@@ -1288,18 +1300,6 @@ Proof
   >> rw[run_machine_1_def]
 QED
 
-Theorem weak_rmcorr:
-  (∀s. P s ⇒ P' s) ∧ (∀s. Q' s ⇒ Q s) ∧ (rmcorr m q0 P' q Q') 
-==> rmcorr m q0 P q Q 
-Proof 
-  rw[rmcorr_def] >>
-  `P' rs` by fs[] >>
-  `∃n rs'. run_step m (rs,SOME q0) n = (rs',q) ∧ Q' rs'` by fs[] >>
-  `Q rs'` by fs[] >>
-  qexists_tac `n` >> 
-  qexists_tac `rs'` >>
-  rw[]
-QED
 
 (* Maybe add effect of Dec into this thm to simplify proofs of functions which uses loops*)
 Theorem loop_correct:
@@ -1323,6 +1323,61 @@ Proof
   `Q rs'` by fs[] >>
   rw[]
 QED
+
+
+
+Theorem loop_correct_0:
+∀ m q INV gd body exit.
+  (∀N. rmcorr m body (λrs. INV (rs(| gd |-> rs gd + 1|)) ∧ rs gd = N) (SOME q) (λrs'. INV rs' ∧ rs' gd <= N))
+∧ (m.tf(q) = Dec gd (SOME body) exit) ∧ q ∈ m.Q
+
+==> rmcorr m q INV exit (λrs. INV rs ∧ rs gd = 0)
+Proof   
+  rw[rmcorr_def] >>
+  completeInduct_on `rs gd` >>
+  rw[] >>
+  fs[PULL_FORALL] >>
+  Cases_on`0<rs gd` 
+  >- (qabbrev_tac `rsx = rs⦇gd ↦ rs gd - 1⦈` >> 
+     `run_machine_1 m (rs, SOME q) = (rsx, SOME body)` by simp[run_machine_1_def] >>
+      first_x_assum (qspec_then `rsx` mp_tac) >>
+      impl_tac 
+      >- rw[Abbr `rsx`, APPLY_UPDATE_THM, APPLY_UPDATE_ID, UPDATE_EQ] 
+      >> strip_tac >>
+      `rs' gd < rs gd` by fs[Abbr`rsx`, APPLY_UPDATE_THM] >>
+      first_x_assum drule_all >> rw[] >>
+      map_every qexists_tac [`SUC (n + n')`, `rs''`] >>
+      simp[run_step_def, GSYM combo_steps]
+    )
+  >> map_every qexists_tac [`SUC 0`, `rs`]
+  >> rw[run_step_def]
+  >> rw[run_machine_1_def]
+QED
+
+
+
+Theorem loop_correct:
+∀ m q INV P Q gd body exit.
+  (∀N. rmcorr m body (λrs. INV (rs(| gd |-> rs gd + 1|)) ∧ rs gd = N) (SOME q) (λrs'. INV rs' ∧ rs' gd <= N))
+∧ (∀rs. P rs ⇒ INV rs) 
+∧ (∀rs. INV rs ∧ rs gd = 0 ⇒ Q rs)
+∧ (m.tf(q) = Dec gd (SOME body) exit)
+∧ q ∈ m.Q
+
+==> rmcorr m q P exit Q
+Proof   
+  rw[] >>
+  `rmcorr m q INV exit (λrs. INV (rs(| gd |-> rs gd + 1|)) ∧ rs gd = 0)` by rw[loop_correct_0] >>
+  fs[rmcorr_def] >>
+  rw[rmcorr_def] >>
+  `INV rs` by fs[] >>
+  `∃n rs'. run_step m (rs,SOME q) n = (rs',exit) ∧ INV rs' ∧ rs' gd = 0` by fs[] >>
+  qexists_tac`n` >>
+  qexists_tac`rs'` >>
+  `Q rs'` by fs[] >>
+  rw[]
+QED
+
 
 Theorem dup_prop[simp]:
   (dup r1 r2 r3).tf 0 = Dec r2 (SOME 0) (SOME 1) ∧
@@ -1530,9 +1585,11 @@ Proof
 QED 
 
 
+
+
 Theorem link_correct:
-  wfrm m1 ∧ wfrm m2 ∧ DISJOINT m1.Q m2.Q ∧ rmcorr m1 m1.q0 P NONE Q ∧ rmcorr m2 m2.q0 Q NONE R
-⇒ rmcorr (link m1 m2) m1.q0 P NONE R
+  wfrm m1 ∧ wfrm m2 ∧ DISJOINT m1.Q m2.Q ∧ rmcorr m1 m1.q0 P NONE Q ∧ rmcorr m2 m2.q0 Q opt R
+⇒ rmcorr (link m1 m2) m1.q0 P opt R
 Proof
   rw[] >>
   irule rmcorr_trans >>
@@ -1541,6 +1598,7 @@ Proof
   >- metis_tac[link_m1end, wfrm_def]
   >> metis_tac[link_m2end, wfrm_def]
 QED
+
 
 
 
@@ -1689,56 +1747,98 @@ Proof
   >> metis_tac[inst_Dest_wf]
 QED 
 
+
 Theorem msInst_correct: 
   (wfrm M ∧ q ∈ M.Q) ⇒ 
   (rmcorr M q P opt Q ⇒ rmcorr (msInst mnum M) (npair mnum q) P (npair_opt mnum opt) Q) 
 Proof 
-  rw[rmcorr_def] >>
-  (* Better ways to apply implications ??? *)
-  `∃n rs'. run_step M (rs,SOME q) n = (rs',opt) ∧ Q rs'` by metis_tac[] >>
-  metis_tac[msInst_run_step]
+  metis_tac[rmcorr_def, msInst_run_step]
+QED 
+
+Theorem msInst_correct_2: 
+  wfrm M ∧ q ∈ M.Q ∧ 
+  rmcorr M q P opt Q ∧
+    q' = npair mnum q ∧
+    opt' = npair_opt mnum opt
+    ⇒ rmcorr (msInst mnum M) q' P opt' Q
+Proof 
+  metis_tac[msInst_correct]
 QED 
 
 
+Theorem Cn_correct: 
+  wfrm m1 ∧ wfrm m2 
+∧
+  DISJOINT m1.Q m2.Q 
+∧ 
+  rmcorr m1 m1.q0 P NONE Q 
+∧ 
+  rmcorr m2 m2.q0 Q NONE R
+
+⇒ rmcorr (link m1 m2) m1.q0 P NONE R
+Proof 
+QED 
+
+Definition lst_def:
+  lst = <|
+        Q := {1;2;3;4};
+        tf := (λs. case s of 
+                | 1 => Dec 1 (SOME 2) NONE
+                | 2 => Dec 2 (SOME 1) (SOME 3)
+                | 3 => Inc 3 (SOME 4)
+                | 4 => Dec 1 (SOME 4) (SOME 1));
+        q0 := 1;
+        In := [1;2];
+        Out := 3;
+        |>
+End
+
+
+Theorem lst_thms[simp]:
+  lst.tf 1 = Dec 1 (SOME 2) NONE ∧
+  lst.Q = {1;2;3;4}
+Proof 
+  rw[lst_def]
+QED 
+
+Theorem lst_correct:
+  rmcorr lst 1 (λrs. rs = RS ∧ rs 3 = 0) NONE (λrs. rs 3 = if RS 2 < RS 1 then 1 else 0)
+Proof 
+  irule loop_correct >>
+  simp[] >>
+  qexists_tac `λrs. (rs 3 = 0 ⇒ (RS 2 < RS 1 ⇔ rs 2 < rs 1)) 
+               ∧ (rs 3 = 1 ⇒ (RS 2 < RS 1) ∧ rs 1 = 0 ∧ rs 2 = 0) ∧ rs 3 < 2 ` >>
+  simp[] >>
+  rpt strip_tac >>
+
+QED
+
+
 (*
-
-Theorem msInst1_correct:
-  ∀mnum. correct1 f m ⇒ correct1 f (msInst mnum m)
-Proof
-  rw[msInst_def, rmcorr_def] >>
-
-QED
-
-Theorem mrInst2_correct:
-∀mnum. correct2 f m ⇒ correct2 f (mrInst mnum m)
-Proof
-
-QED
-
-
-Theorem msInst2_correct:
-  ∀mnum. correct2 f m ⇒ correct2 f (msInst mnum m)
-Proof
-
-QED
-
 
 Theorem Cn1_correct:
   correct1 f1 m1 ∧ correct1 f2 m2 ⇒ ∀n. RUN (Cn m1 [m2]) [n] = (f1 o f2) n  
 Proof
   rw[correct1_def, init_machine_def, run_machine_def, RUN_def, rsf_def] >>
   rw[Cn_def] >>
-
 QED
 *)
 
+
 (* TODO 
 1. Rewrite exp and fac proof etc with the loop theorem 
-2. Maybe add rmcorr_Inc
+2. prove rmcorr_Inc
 
     m.tf q0 = Inc r (SOME d)
-    rmcorr q0 p P q Q
+    ==>
+    (rmcorr m d (\rs. P (rs (| r |-> rs r - 1 |) /\ 0 < rs r) q Q
+      ==> 
+    rmcorr q0 p P q Q)
 
-3.  *)
+3. finish new loop_corect  
+4. prove lst_correct using loop_correct
+5. prove npair shit 
+6. report
+7. *)
 
 val _ = export_theory ()
