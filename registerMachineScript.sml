@@ -1186,7 +1186,7 @@ Proof
   Cases_on `0 < rs r` 
   >- (qabbrev_tac`rs' = rs (| r |-> rs r - 1|)` >> 
       `P rs' ⦇r ↦ rs' r + 1⦈ ` 
-      by simp[Abbr`rs'`, APPLY_UPDATE_THM, UPDATE_EQ, APPLY_UPDATE_ID]
+          by simp[Abbr`rs'`, APPLY_UPDATE_THM, UPDATE_EQ, APPLY_UPDATE_ID]
        >> last_x_assum drule >> strip_tac >> map_every qexists_tac [`SUC n`, `rs''`]
        >> rw[run_step_def, run_machine_1_def])
   >> `rs r = 0` by simp[] 
@@ -1195,6 +1195,25 @@ Proof
   >> rw[run_step_def, run_machine_1_def]
 QED
 
+Theorem rmcorr_Inc:
+  m.tf q0 = Inc r (SOME d)
+∧
+  q0 ∈ m.Q
+∧
+  rmcorr m d (λrs. P (rs (| r |-> rs r - 1 |)) ∧ 0 < rs r) q Q
+==> 
+  rmcorr m q0 P q Q
+Proof 
+  rw[rmcorr_def] >>
+  qabbrev_tac `rs' = rs⦇r ↦ rs r + 1⦈` >> 
+  `rs'⦇r ↦ rs' r - 1⦈ = rs` by rw[APPLY_UPDATE_THM, Abbr`rs'`, FUN_EQ_THM] >>
+  `P rs'⦇r ↦ rs' r - 1⦈` by fs[] >>
+  `0 < rs' r ` by rw[APPLY_UPDATE_THM, Abbr`rs'`] >>
+  first_x_assum drule_all >>
+  strip_tac >> 
+  map_every qexists_tac [`SUC n`, `rs''`] >>
+  rw[run_step_def, run_machine_1_def]
+QED 
 
 (* 0 *)
 Theorem const0rm[simp] = EVAL``const 0``;
@@ -1280,51 +1299,6 @@ Proof
   rw[]
 QED
 
-Theorem loop_correct_0:
-∀ m q INV gd body exit.
-  (∀N. rmcorr m q (λrs. INV rs ∧ rs gd = N ∧ 0 < N) (SOME q) (λrs'. INV rs' ∧ rs' gd < N))
-∧ (m.tf(q) = Dec gd (SOME body) exit) ∧ q ∈ m.Q
-
-==> rmcorr m q INV exit (λrs. INV rs ∧ rs gd = 0)
-Proof   
-  rw[rmcorr_def] >>
-  completeInduct_on `rs gd` >>
-  rw[] >>
-  fs[PULL_FORALL] >>
-  Cases_on`0<rs gd` 
-  >- (first_x_assum drule_all >> rw[] 
-      >> first_x_assum drule_all >> rw[] >> metis_tac[combo_steps])
-  >> fs[]
-  >> map_every qexists_tac [`SUC 0`, `rs`]
-  >> rw[run_step_def]
-  >> rw[run_machine_1_def]
-QED
-
-
-(* Maybe add effect of Dec into this thm to simplify proofs of functions which uses loops*)
-Theorem loop_correct:
-∀ m q INV P Q gd body exit.
-  (∀N. rmcorr m q (λrs. INV rs ∧ rs gd = N ∧ 0 < N) (SOME q) (λrs'. INV rs' ∧ rs' gd < N))
-∧ (∀rs. P rs ⇒ INV rs) 
-∧ (∀rs. INV rs ∧ rs gd = 0 ⇒ Q rs)
-∧ (m.tf(q) = Dec gd (SOME body) exit)
-∧ q ∈ m.Q
-
-==> rmcorr m q P exit Q
-Proof   
-  rw[] >>
-  `rmcorr m q INV exit (λrs. INV rs ∧ rs gd = 0)` by rw[loop_correct_0] >>
-  fs[rmcorr_def] >>
-  rw[rmcorr_def] >>
-  `INV rs` by fs[] >>
-  `∃n rs'. run_step m (rs,SOME q) n = (rs',exit) ∧ INV rs' ∧ rs' gd = 0` by fs[] >>
-  qexists_tac`n` >>
-  qexists_tac`rs'` >>
-  `Q rs'` by fs[] >>
-  rw[]
-QED
-
-
 
 Theorem loop_correct_0:
 ∀ m q INV gd body exit.
@@ -1367,7 +1341,7 @@ Theorem loop_correct:
 ==> rmcorr m q P exit Q
 Proof   
   rw[] >>
-  `rmcorr m q INV exit (λrs. INV (rs(| gd |-> rs gd + 1|)) ∧ rs gd = 0)` by rw[loop_correct_0] >>
+  `rmcorr m q INV exit (λrs. INV rs ∧ rs gd = 0)` by rw[loop_correct_0] >>
   fs[rmcorr_def] >>
   rw[rmcorr_def] >>
   `INV rs` by fs[] >>
@@ -1403,6 +1377,64 @@ Proof
 (* loop1 : clear r2 *)
   map_every qexists_tac [`λrs'. rs'= RS (| r2 |-> 0 |)`, `1`] >> rw[] 
   >- (irule loop_correct >> simp[] >> qexists_tac`(λrs. ∀k. k ≠ r2 ⇒ rs k = RS k)` 
+      >> rw[] 
+      >- (rw[APPLY_UPDATE_THM, FUN_EQ_THM] >> rw[] >> rw[]) 
+      >> rw[rmcorr_def] >> map_every qexists_tac [`1`, `rs (| r2 |-> rs r2 - 1 |)`] 
+      >> rw[] 
+      >- (`run_step (dup r1 r2 r3) (rs,SOME 0) (SUC 0) = (rs⦇r2 ↦ rs r2 − 1⦈,SOME 0)` suffices_by simp[GSYM ADD1] 
+        >> rw[run_step_def, run_machine_1_def])
+      >- rw[APPLY_UPDATE_THM]
+      >> rw[APPLY_UPDATE_THM]
+      )
+  >> irule rmcorr_trans >>
+(* loop2: transfer r1 into r2 and r3 *)
+  map_every qexists_tac [`λrs'. rs'= RS (| r1 |-> 0 ; r2 |-> RS r1 ; r3 |-> RS r1|)`, `4`] >> rw[]
+  >- (irule loop_correct >> simp[] 
+      >> qexists_tac`(λrs. rs r1 + rs r2 = RS r1 ∧ rs r2 = rs r3 ∧ ∀k. k ∉ {r1; r2; r3} ⇒ rs k = RS k)` 
+      >> rw[]
+      >> rw[APPLY_UPDATE_THM]
+      >- (`rs r2 = RS r1` by simp[] >> rw[APPLY_UPDATE_THM, FUN_EQ_THM]
+          >> rw[] >> rw[])
+      >> rw[rmcorr_def]
+      >> map_every qexists_tac [`SUC (SUC (SUC 0))`,`rs (| r1 |-> rs r1 - 1 ; r2 |-> rs r2 + 1 ; r3 |-> rs r3 + 1 |)`]
+      >> rw[run_step_def]
+      >- (rw[run_machine_1_def] >> rw[FUN_EQ_THM, APPLY_UPDATE_THM])
+      >> rw[FUN_EQ_THM, APPLY_UPDATE_THM])
+(* loop3: transfer r3 back into r1 *)
+  >> irule loop_correct >> simp[] >> 
+  qexists_tac`(λrs. rs r1 + rs r3 = RS r1 ∧ rs r2 = RS r1 ∧ ∀k. k ∉ {r1; r2; r3} ⇒ rs k = RS k)` >>
+  rw[] >> 
+  rw[APPLY_UPDATE_THM] >>
+  fs[] >>
+  rw[FUN_EQ_THM, APPLY_UPDATE_THM] >>
+  rw[] >>
+  rw[] 
+  >- (Cases_on `x = r1` 
+      >- fs[]
+      >> Cases_on `x = r2`
+      >- fs[]
+      >> Cases_on `x = r3`
+      >- fs[] 
+      >> rw[APPLY_UPDATE_ID, FUN_EQ_THM])
+  >> rw[rmcorr_def] 
+  >> map_every qexists_tac [`SUC (SUC 0)`,`rs (| r1 |-> rs r1 + 1 ; r3 |-> rs r3 - 1 |)`]
+  >> rw[run_step_def]
+  >- (rw[run_machine_1_def] >> rw[APPLY_UPDATE_THM, FUN_EQ_THM])
+  >> rw[APPLY_UPDATE_THM]
+QED
+
+
+Theorem dup_correct:
+  ∀r1 r2 r3 RS. 
+  r1 ≠ r2 ∧ r1 ≠ r3 ∧ r2 ≠ r3 ∧ RS r3 = 0
+==>
+  rmcorr (dup r1 r2 r3) 0 (λrs. rs = RS) NONE (λrs'. rs' = RS (| r2 |-> RS r1 |) ) 
+Proof 
+  rw[] >>
+  irule rmcorr_trans >>
+(* loop1 : clear r2 *)
+  map_every qexists_tac [`λrs'. rs'= RS (| r2 |-> 0 |)`, `1`] >> rw[] 
+  >- (irule loop_correct >> simp[] >> qexists_tac`(λrs. rs = RS)` 
       >> rw[] 
       >- (rw[APPLY_UPDATE_THM, FUN_EQ_THM] >> rw[] >> rw[]) 
       >> rw[rmcorr_def] >> map_every qexists_tac [`1`, `rs (| r2 |-> rs r2 - 1 |)`] 
@@ -1796,7 +1828,8 @@ End
 
 Theorem lst_thms[simp]:
   lst.tf 1 = Dec 1 (SOME 2) NONE ∧
-  lst.Q = {1;2;3;4}
+  lst.Q = {1;2;3;4} ∧
+   lst.tf 2 = Dec 2 (SOME 1) (SOME 3)
 Proof 
   rw[lst_def]
 QED 
@@ -1810,10 +1843,71 @@ Proof
                ∧ (rs 3 = 1 ⇒ (RS 2 < RS 1) ∧ rs 1 = 0 ∧ rs 2 = 0) ∧ rs 3 < 2 ` >>
   simp[] >>
   rpt strip_tac >>
+  rw[APPLY_UPDATE_THM] >>
+  irule rmcorr_dec >> 
+  simp[] >>
+  rw[] 
+  >-  
+  >>
 
+
+  irule loop_correct >>
+  qexists_tac 
 QED
 
+(* Pair f g n = npair (f n) (g n) *)
+Definition Pair:
+  numPair f g n = <|
+    Q:={};
+    tf:=();
+    q0:=;
+    In:=[];
+    Out:=;
+  |>
+End
 
+(* FST n = nfst n *)
+Definition FST:
+  FST n = <|
+    Q:={};
+    tf:=();
+    q0:=;
+    In:=[];
+    Out:=;
+  |>
+End
+
+(* SND n = nsnd n *)
+Definition SND:
+  SND n = <|
+    Q:={};
+    tf:=();
+    q0:=;
+    In:=[];
+    Out:=;
+  |>
+End
+
+Definition Tri:
+  Tri n = <|
+    Q:={};
+    tf:=();
+    q0:=;
+    In:=[];
+    Out:=;
+  |>
+End
+
+
+Definition InvTri0:
+  InvTri0 n = <|
+    Q:={};
+    tf:=();
+    q0:=;
+    In:=[];
+    Out:=;
+  |>
+End
 (*
 
 Theorem Cn1_correct:
@@ -1826,7 +1920,7 @@ QED
 
 
 (* TODO 
-1. Rewrite exp and fac proof etc with the loop theorem 
+1. sleep well :D 
 2. prove rmcorr_Inc
 
     m.tf q0 = Inc r (SOME d)
@@ -1839,6 +1933,7 @@ QED
 4. prove lst_correct using loop_correct
 5. prove npair shit 
 6. report
-7. *)
+7. Rewrite exp and fac proof etc with the loop theorem 
+ *)
 
 val _ = export_theory ()
