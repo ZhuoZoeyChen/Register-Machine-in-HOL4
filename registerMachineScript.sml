@@ -1151,16 +1151,25 @@ Proof
 QED
 
 
+
 Theorem rmcorr_inc:
   m.tf q0 = Inc r (SOME d)
-∧ 
+∧
   q0 ∈ m.Q
 ∧
-  rmcorr m d (λrs. P (rs (|r |-> rs r - 1|))) q Q
-==>
+  rmcorr m d (λrs. P (rs (| r |-> rs r - 1 |)) ∧ 0 < rs r) q Q
+==> 
   rmcorr m q0 P q Q
 Proof 
-  cheat
+  rw[rmcorr_def] >>
+  qabbrev_tac `rs' = rs⦇r ↦ rs r + 1⦈` >> 
+  `rs'⦇r ↦ rs' r - 1⦈ = rs` by rw[APPLY_UPDATE_THM, Abbr`rs'`, FUN_EQ_THM] >>
+  `P rs'⦇r ↦ rs' r - 1⦈` by fs[] >>
+  `0 < rs' r ` by rw[APPLY_UPDATE_THM, Abbr`rs'`] >>
+  first_x_assum drule_all >>
+  strip_tac >> 
+  map_every qexists_tac [`SUC n`, `rs''`] >>
+  rw[run_step_def, run_machine_1_def]
 QED 
 
 Theorem rmcorr_stay:
@@ -1195,25 +1204,6 @@ Proof
   >> rw[run_step_def, run_machine_1_def]
 QED
 
-Theorem rmcorr_Inc:
-  m.tf q0 = Inc r (SOME d)
-∧
-  q0 ∈ m.Q
-∧
-  rmcorr m d (λrs. P (rs (| r |-> rs r - 1 |)) ∧ 0 < rs r) q Q
-==> 
-  rmcorr m q0 P q Q
-Proof 
-  rw[rmcorr_def] >>
-  qabbrev_tac `rs' = rs⦇r ↦ rs r + 1⦈` >> 
-  `rs'⦇r ↦ rs' r - 1⦈ = rs` by rw[APPLY_UPDATE_THM, Abbr`rs'`, FUN_EQ_THM] >>
-  `P rs'⦇r ↦ rs' r - 1⦈` by fs[] >>
-  `0 < rs' r ` by rw[APPLY_UPDATE_THM, Abbr`rs'`] >>
-  first_x_assum drule_all >>
-  strip_tac >> 
-  map_every qexists_tac [`SUC n`, `rs''`] >>
-  rw[run_step_def, run_machine_1_def]
-QED 
 
 (* 0 *)
 Theorem const0rm[simp] = EVAL``const 0``;
@@ -1811,6 +1801,8 @@ Theorem Cn_correct:
 Proof 
 QED 
 
+
+
 Definition lst_def:
   lst = <|
         Q := {1;2;3;4};
@@ -1847,7 +1839,7 @@ Proof
   irule rmcorr_dec >> 
   simp[] >>
   rw[] 
-  >-  
+  >-  irule rmcorr_inc
   >>
 
 
