@@ -1172,12 +1172,15 @@ Proof
   rw[run_step_def, run_machine_1_def]
 QED 
 
+
 Theorem rmcorr_stay:
-  ∀rs. P rs ⇒ Q rs 
-  ==> 
-  rmcorr m q P q Q
+(∀rs. P rs ⇒ Q rs) ⇒ rmcorr m q P (SOME q) Q
 Proof 
-cheat
+  rw[rmcorr_def] >>
+  map_every qexists_tac [`0`, `rs`] >>
+  first_x_assum drule >>
+  strip_tac >>
+  rw[run_step_def]
 QED
 
 Theorem rmcorr_dec:
