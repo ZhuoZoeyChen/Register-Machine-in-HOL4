@@ -1822,9 +1822,11 @@ End
 
 
 Theorem lst_thms[simp]:
-  lst.tf 1 = Dec 1 (SOME 2) NONE ∧
   lst.Q = {1;2;3;4} ∧
-   lst.tf 2 = Dec 2 (SOME 1) (SOME 3)
+  lst.tf 1 = Dec 1 (SOME 2) NONE ∧
+  lst.tf 2 = Dec 2 (SOME 1) (SOME 3) ∧
+  lst.tf 3 = Inc 3 (SOME 4) ∧
+  lst.tf 4 = Dec 1 (SOME 4) (SOME 1)
 Proof 
   rw[lst_def]
 QED 
@@ -1842,12 +1844,20 @@ Proof
   irule rmcorr_dec >> 
   simp[] >>
   rw[] 
-  >-  irule rmcorr_inc
-  >>
-
-
-  irule loop_correct >>
-  qexists_tac 
+  >- (irule rmcorr_inc >> simp[] >> 
+      irule loop_correct >> simp[APPLY_UPDATE_THM] >>
+      map_every qexists_tac [`λrs. rs 3 = 1 ∧ (RS 2 < RS 1) ∧ rs 2 = 0`] >> 
+      simp[] >>
+      rw[APPLY_UPDATE_THM] >> 
+      rw[rmcorr_stay])
+  >> rw[APPLY_UPDATE_THM] 
+  >> `∀rs0. (λrs.((rs 3 = 0 ⇒ (RS 2 < RS 1 ⇔ rs 2 < rs 1)) ∧ rs 3 ≠ 1 ∧ rs 3 < 2) ∧
+          rs 1 = N) rs0
+   ==>  
+    (λrs'.((rs' 3 = 0 ⇒ (RS 2 < RS 1 ⇔ rs' 2 < rs' 1)) ∧
+           (rs' 3 = 1 ⇒ RS 2 < RS 1 ∧ rs' 1 = 0 ∧ rs' 2 = 0) ∧ rs' 3 < 2) ∧
+          rs' 1 ≤ N) rs0` by rw[APPLY_UPDATE_THM]
+  >> rw[rmcorr_stay] 
 QED
 
 (* Pair f g n = npair (f n) (g n) *)
