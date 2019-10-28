@@ -1359,6 +1359,7 @@ Proof
 QED
 
 
+
 Theorem dup_correct:
   ∀r1 r2 r3 RS. 
   r1 ≠ r2 ∧ r1 ≠ r3 ∧ r2 ≠ r3 ∧ RS r3 = 0
@@ -1372,11 +1373,10 @@ Proof
   >- (irule loop_correct >> simp[] >> qexists_tac`(λrs. ∀k. k ≠ r2 ⇒ rs k = RS k)` 
       >> rw[] 
       >- (rw[APPLY_UPDATE_THM, FUN_EQ_THM] >> rw[] >> rw[]) 
-      >> rw[rmcorr_def] >> map_every qexists_tac [`1`, `rs (| r2 |-> rs r2 - 1 |)`] 
+      >> rw[rmcorr_def] >> map_every qexists_tac [`0`, `rs`] 
       >> rw[] 
-      >- (`run_step (dup r1 r2 r3) (rs,SOME 0) (SUC 0) = (rs⦇r2 ↦ rs r2 − 1⦈,SOME 0)` suffices_by simp[GSYM ADD1] 
-        >> rw[run_step_def, run_machine_1_def])
-      >- rw[APPLY_UPDATE_THM]
+      >- rw[run_step_def]
+      >> first_x_assum drule
       >> rw[APPLY_UPDATE_THM]
       )
   >> irule rmcorr_trans >>
@@ -1389,77 +1389,15 @@ Proof
       >- (`rs r2 = RS r1` by simp[] >> rw[APPLY_UPDATE_THM, FUN_EQ_THM]
           >> rw[] >> rw[])
       >> rw[rmcorr_def]
-      >> map_every qexists_tac [`SUC (SUC (SUC 0))`,`rs (| r1 |-> rs r1 - 1 ; r2 |-> rs r2 + 1 ; r3 |-> rs r3 + 1 |)`]
-      >> rw[run_step_def]
-      >- (rw[run_machine_1_def] >> rw[FUN_EQ_THM, APPLY_UPDATE_THM])
-      >> rw[FUN_EQ_THM, APPLY_UPDATE_THM])
-(* loop3: transfer r3 back into r1 *)
-  >> irule loop_correct >> simp[] >> 
-  qexists_tac`(λrs. rs r1 + rs r3 = RS r1 ∧ rs r2 = RS r1 ∧ ∀k. k ∉ {r1; r2; r3} ⇒ rs k = RS k)` >>
-  rw[] >> 
-  rw[APPLY_UPDATE_THM] >>
-  fs[] >>
-  rw[FUN_EQ_THM, APPLY_UPDATE_THM] >>
-  rw[] >>
-  rw[] 
-  >- (Cases_on `x = r1` 
-      >- fs[]
-      >> Cases_on `x = r2`
-      >- fs[]
-      >> Cases_on `x = r3`
-      >- fs[] 
-      >> rw[APPLY_UPDATE_ID, FUN_EQ_THM])
-  >> rw[rmcorr_def] 
-  >> map_every qexists_tac [`SUC (SUC 0)`,`rs (| r1 |-> rs r1 + 1 ; r3 |-> rs r3 - 1 |)`]
-  >> rw[run_step_def]
-  >- (rw[run_machine_1_def] >> rw[APPLY_UPDATE_THM, FUN_EQ_THM])
-  >> rw[APPLY_UPDATE_THM]
-QED
-
-
-Theorem dup_correct:
-  ∀r1 r2 r3 RS. 
-  r1 ≠ r2 ∧ r1 ≠ r3 ∧ r2 ≠ r3 ∧ RS r3 = 0
-==>
-  rmcorr (dup r1 r2 r3) 0 (λrs. rs = RS) NONE (λrs'. rs' = RS (| r2 |-> RS r1 |) ) 
-Proof 
-  rw[] >>
-  irule rmcorr_trans >>
-(* loop1 : clear r2 *)
-  map_every qexists_tac [`λrs'. rs'= RS (| r2 |-> 0 |)`, `1`] >> rw[] 
-  >- (irule loop_correct >> simp[] >> qexists_tac`(λrs. rs = RS)` 
-      >> rw[] 
-      >- (rw[APPLY_UPDATE_THM, FUN_EQ_THM] >> rw[] >> rw[]) 
-      >> rw[rmcorr_def] >> map_every qexists_tac [`1`, `rs (| r2 |-> rs r2 - 1 |)`] 
-      >> rw[] 
-      >- (`run_step (dup r1 r2 r3) (rs,SOME 0) (SUC 0) = (rs⦇r2 ↦ rs r2 − 1⦈,SOME 0)` suffices_by simp[GSYM ADD1] 
-        >> rw[run_step_def, run_machine_1_def])
-      >- rw[APPLY_UPDATE_THM]
-      >> rw[APPLY_UPDATE_THM]
+      >> map_every qexists_tac [`SUC (SUC 0)`,`rs (| r2 |-> rs r2 + 1 ; r3 |-> rs r3 + 1 |)`]
+      >> rw[run_step_def, run_machine_1_def, FUN_EQ_THM, APPLY_UPDATE_THM]
       )
-  >> irule rmcorr_trans >>
-(* loop2: transfer r1 into r2 and r3 *)
-  map_every qexists_tac [`λrs'. rs'= RS (| r1 |-> 0 ; r2 |-> RS r1 ; r3 |-> RS r1|)`, `4`] >> rw[]
-  >- (irule loop_correct >> simp[] 
-      >> qexists_tac`(λrs. rs r1 + rs r2 = RS r1 ∧ rs r2 = rs r3 ∧ ∀k. k ∉ {r1; r2; r3} ⇒ rs k = RS k)` 
-      >> rw[]
-      >> rw[APPLY_UPDATE_THM]
-      >- (`rs r2 = RS r1` by simp[] >> rw[APPLY_UPDATE_THM, FUN_EQ_THM]
-          >> rw[] >> rw[])
-      >> rw[rmcorr_def]
-      >> map_every qexists_tac [`SUC (SUC (SUC 0))`,`rs (| r1 |-> rs r1 - 1 ; r2 |-> rs r2 + 1 ; r3 |-> rs r3 + 1 |)`]
-      >> rw[run_step_def]
-      >- (rw[run_machine_1_def] >> rw[FUN_EQ_THM, APPLY_UPDATE_THM])
-      >> rw[FUN_EQ_THM, APPLY_UPDATE_THM])
 (* loop3: transfer r3 back into r1 *)
   >> irule loop_correct >> simp[] >> 
-  qexists_tac`(λrs. rs r1 + rs r3 = RS r1 ∧ rs r2 = RS r1 ∧ ∀k. k ∉ {r1; r2; r3} ⇒ rs k = RS k)` >>
-  rw[] >> 
+  qexists_tac`(λrs. rs r1 + rs r3 = RS r1 ∧ rs r2 = RS r1 ∧ ∀k. k ∉ {r1; r2; r3} ⇒ rs k = RS k)` >> 
   rw[APPLY_UPDATE_THM] >>
   fs[] >>
-  rw[FUN_EQ_THM, APPLY_UPDATE_THM] >>
-  rw[] >>
-  rw[] 
+  rw[FUN_EQ_THM, APPLY_UPDATE_THM] 
   >- (Cases_on `x = r1` 
       >- fs[]
       >> Cases_on `x = r2`
@@ -1468,10 +1406,8 @@ Proof
       >- fs[] 
       >> rw[APPLY_UPDATE_ID, FUN_EQ_THM])
   >> rw[rmcorr_def] 
-  >> map_every qexists_tac [`SUC (SUC 0)`,`rs (| r1 |-> rs r1 + 1 ; r3 |-> rs r3 - 1 |)`]
-  >> rw[run_step_def]
-  >- (rw[run_machine_1_def] >> rw[APPLY_UPDATE_THM, FUN_EQ_THM])
-  >> rw[APPLY_UPDATE_THM]
+  >> map_every qexists_tac [`SUC 0`,`rs (| r1 |-> rs r1 + 1|)`]
+  >> rw[run_step_def, run_machine_1_def, APPLY_UPDATE_THM, FUN_EQ_THM]
 QED
 
 Theorem link_Q[simp]:
@@ -1925,8 +1861,8 @@ QED
 
 
 (* TODO 
-1. sleep well :D 
-2. prove rmcorr_Inc
+DONE 1. sleep well :D 
+DONE 2. prove rmcorr_Inc
 
     m.tf q0 = Inc r (SOME d)
     ==>
@@ -1934,8 +1870,8 @@ QED
       ==> 
     rmcorr q0 p P q Q)
 
-3. finish new loop_corect  
-4. prove lst_correct using loop_correct
+DONE 3. finish new loop_corect  
+DONE 4. prove lst_correct using loop_correct
 5. prove npair shit 
 6. report
 7. Rewrite exp and fac proof etc with the loop theorem 
