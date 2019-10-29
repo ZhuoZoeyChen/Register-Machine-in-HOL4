@@ -1824,13 +1824,41 @@ Definition SND:
     Q:={};
     tf:=();
     q0:=;
-    In:=[];
+    In:=[1];
     Out:=;
   |>
 End
 
+
 Definition Tri:
-  Tri n = <|
+  Tri = <|
+          Q:={1;2;3;4;5;6;7;8;9;10;11;12};
+          tf:=(λs. 
+                  case s of 
+                    1 => Dec 1 (SOME 2) (SOME 4)
+                  | 2 => Inc 2 (SOME 3)
+                  | 3 => Inc 3 (SOME 1)
+                  | 4 => Dec 3 (SOME 5) (SOME 6)
+                  | 5 => Inc 1 (SOME 4)
+                  | 6 => Dec 1 (SOME 7) NONE
+                  | 7 => Dec 2 (SOME 8) (SOME 10)
+                  | 8 => Inc 3 (SOME 9)
+                  | 9 => Inc 4 (SOME 7)
+                  | 10 => Dec 4 (SOME 11) (SOME 12)
+                  | 11 => Inc 2 (SOME 10)
+                  | 12 => Dec 2 (SOME 6) (SOME 6) 
+                );
+                     (* state 12: 6 and 6 or 6 and NONE ? (it will not go to the second option anyways*)
+          q0:=1;
+          In:=[1];
+          Out:=3;
+        |>
+End
+
+val tri = EVAL ``RUN Tri [6]``;
+
+Definition InvTri:
+  InvTri0 n = <|
     Q:={};
     tf:=();
     q0:=;
@@ -1841,13 +1869,7 @@ End
 
 
 Definition InvTri0:
-  InvTri0 n = <|
-    Q:={};
-    tf:=();
-    q0:=;
-    In:=[];
-    Out:=;
-  |>
+  
 End
 (*
 
@@ -1872,6 +1894,7 @@ DONE 2. prove rmcorr_Inc
 
 DONE 3. finish new loop_corect  
 DONE 4. prove lst_correct using loop_correct
+DONE * fix dup_correct
 5. prove npair shit 
 6. report
 7. Rewrite exp and fac proof etc with the loop theorem 
