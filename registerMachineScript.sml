@@ -408,6 +408,19 @@ Definition simp_add_def:
 End
 
 
+(* Substract 2 from 1 (stops at 0)*)
+Definition simp_sub_def:
+  simp_sub = <|
+    Q := {1;2};
+    tf := (λs. case s of 
+            | 1 => Dec 2 (SOME 2) NONE 
+            | 2 => Dec 1 (SOME 1) (SOME 1)
+          );
+    q0 := 1;
+    In := [1;2];
+    Out := 1;
+  |>
+End
 
 Theorem simp_add_correct:
   correct2 (+) simp_add
@@ -1796,6 +1809,69 @@ Proof
   >> rw[rmcorr_stay] 
 QED
 
+Definition Tri:
+  Tri = <|
+          Q:={1;2;3;4;5;6;7;8;9;10;11;12};
+          tf:=(λs. 
+                  case s of 
+                    1 => Dec 1 (SOME 2) (SOME 4)
+                  | 2 => Inc 2 (SOME 3)
+                  | 3 => Inc 3 (SOME 1)
+                  | 4 => Dec 3 (SOME 5) (SOME 6)
+                  | 5 => Inc 1 (SOME 4)
+                  | 6 => Dec 1 (SOME 7) NONE
+                  | 7 => Dec 2 (SOME 8) (SOME 10)
+                  | 8 => Inc 3 (SOME 9)
+                  | 9 => Inc 4 (SOME 7)
+                  | 10 => Dec 4 (SOME 11) (SOME 12)
+                  | 11 => Inc 2 (SOME 10)
+                  | 12 => Dec 2 (SOME 6) (SOME 6) 
+                );
+                     (* state 12: 6 and 6 or 6 and NONE ? (it will not go to the second option anyways*)
+          q0:=1;
+          In:=[1];
+          Out:=3;
+        |>
+End
+
+val tri = EVAL ``RUN Tri [6]``;
+
+
+Definition InvTri:
+  InvTri = <|
+    Q:={1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16;17;18;19;20;21;22;23};
+    tf:=(λs. 
+            case s of 
+              1 => Dec 6 (SOME 2) (SOME 4)
+            | 2 => Inc 1 (SOME 3)
+            | 3 => Inc 7 (SOME 1)
+            | 4 => Dec 7 (SOME 5) (SOME 6)
+            | 5 => Inc 6 (SOME 4)
+            | 6 => Inc 1 (SOME 7)
+            | 7 => Dec 5 (SOME 8) (SOME 10)
+            | 8 => Inc 2 (SOME 9)
+            | 9 => Inc 7 (SOME 7)
+            | 10 => Dec 7 (SOME 11) (SOME 12)
+            | 11 => Inc 5 (SOME 10)
+            | 12 => Dec 1 (SOME 13) (SOME 16)
+            | 13 => Dec 2 (SOME 12) (SOME 14)
+            | 14 => Inc 3 (SOME 15)
+            | 15 => Dec 1 (SOME 15) (SOME 12)
+            | 16 => Dec 3 NONE      (SOME 17)
+            | 17 => Inc 6 (SOME 18)
+            | 18 => Dec 6 (SOME 19) (SOME 21)
+            | 19 => Dec 5 (SOME 20) (SOME 20)
+            | 20 => Inc 7 (SOME 18)
+            | 21 => Dec 7 (SOME 22) (SOME 23)
+            | 22 => Inc 6 (SOME 21)
+            | 23 => Dec 2 (SOME 23) (SOME 1)
+            );
+    q0:=1;
+    In:=[5];
+    Out:=6;
+  |>
+End
+
 (* Pair f g n = npair (f n) (g n) *)
 Definition Pair:
   numPair f g n = <|
@@ -1830,47 +1906,7 @@ Definition SND:
 End
 
 
-Definition Tri:
-  Tri = <|
-          Q:={1;2;3;4;5;6;7;8;9;10;11;12};
-          tf:=(λs. 
-                  case s of 
-                    1 => Dec 1 (SOME 2) (SOME 4)
-                  | 2 => Inc 2 (SOME 3)
-                  | 3 => Inc 3 (SOME 1)
-                  | 4 => Dec 3 (SOME 5) (SOME 6)
-                  | 5 => Inc 1 (SOME 4)
-                  | 6 => Dec 1 (SOME 7) NONE
-                  | 7 => Dec 2 (SOME 8) (SOME 10)
-                  | 8 => Inc 3 (SOME 9)
-                  | 9 => Inc 4 (SOME 7)
-                  | 10 => Dec 4 (SOME 11) (SOME 12)
-                  | 11 => Inc 2 (SOME 10)
-                  | 12 => Dec 2 (SOME 6) (SOME 6) 
-                );
-                     (* state 12: 6 and 6 or 6 and NONE ? (it will not go to the second option anyways*)
-          q0:=1;
-          In:=[1];
-          Out:=3;
-        |>
-End
 
-val tri = EVAL ``RUN Tri [6]``;
-
-Definition InvTri:
-  InvTri0 n = <|
-    Q:={};
-    tf:=();
-    q0:=;
-    In:=[];
-    Out:=;
-  |>
-End
-
-
-Definition InvTri0:
-  
-End
 (*
 
 Theorem Cn1_correct:
