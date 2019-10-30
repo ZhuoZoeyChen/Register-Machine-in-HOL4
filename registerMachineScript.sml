@@ -1878,40 +1878,37 @@ Proof
 QED 
 
 
-Definition invTri:
-  InvTri = <|
-    Q:={1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16;17;18;19;20;21;22;23};
-    tf:=(λs. 
-            case s of 
-              1 => Dec 6 (SOME 2) (SOME 4)
-            | 2 => Inc 1 (SOME 3)
-            | 3 => Inc 7 (SOME 1)
-            | 4 => Dec 7 (SOME 5) (SOME 6)
-            | 5 => Inc 6 (SOME 4)
-            | 6 => Inc 1 (SOME 7)
-            | 7 => Dec 5 (SOME 8) (SOME 10)
-            | 8 => Inc 2 (SOME 9)
-            | 9 => Inc 7 (SOME 7)
-            | 10 => Dec 7 (SOME 11) (SOME 12)
-            | 11 => Inc 5 (SOME 10)
-            | 12 => Dec 1 (SOME 13) (SOME 16)
-            | 13 => Dec 2 (SOME 12) (SOME 14)
-            | 14 => Inc 3 (SOME 15)
-            | 15 => Dec 1 (SOME 15) (SOME 12)
-            | 16 => Dec 3 NONE      (SOME 17)
-            | 17 => Inc 6 (SOME 18)
-            | 18 => Dec 6 (SOME 19) (SOME 21)
-            | 19 => Dec 5 (SOME 20) (SOME 20)
-            | 20 => Inc 7 (SOME 18)
-            | 21 => Dec 7 (SOME 22) (SOME 23)
-            | 22 => Inc 6 (SOME 21)
-            | 23 => Dec 2 (SOME 23) (SOME 1)
+
+Definition invTriV:
+  invTriV = <|
+    Q   := {1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16};
+    tf  := (λs.
+             case s of 
+               1 => Inc 2 (SOME 2) 
+             | 2 => Dec 2 (SOME 3) (SOME 7)
+             | 3 => Dec 1 (SOME 4) (SOME 5)
+             | 4 => Inc 4 (SOME 2)
+             | 5 => Inc 3 (SOME 6)
+             | 6 => Inc 2 (SOME 7)
+             | 7 => Dec 4 (SOME 8) (SOME 10)
+             | 8 => Inc 2 (SOME 9)
+             | 9 => Inc 1 (SOME 7) 
+             | 10 => Dec 3 (SOME 11) (SOME 12)
+             | 11 => Dec 2 NONE NONE 
+             | 12 => Dec 2 (SOME 13) (SOME 15)
+             | 13 => Dec 1 (SOME 14) (SOME 14)
+             | 14 => Inc 3 (SOME 12)
+             | 15 => Dec 3 (SOME 16) (SOME 1)
+             | 16 => Inc 2 (SOME 15)
             );
-    q0:=1;
-    In:=[5];
-    Out:=6;
+    q0  := 1;
+    In  := [1];
+    Out := 2;
   |>
 End
+
+
+val t2 = EVAL ``RUN invTriV [199]``;
 
 Definition numPair:
   dup 1 and 2 into addition 
