@@ -1809,35 +1809,76 @@ Proof
   >> rw[rmcorr_stay] 
 QED
 
-Definition Tri:
+
+Definition Tri_def:
   Tri = <|
-          Q:={1;2;3;4;5;6;7;8;9;10;11;12};
-          tf:=(λs. 
+          Q:={1;2;3;4;5;6;7};
+          tf :=(λs. 
                   case s of 
-                    1 => Dec 1 (SOME 2) (SOME 4)
+                  | 6 => Dec 1 (SOME 7) NONE
+                  | 7 => Inc 2 (SOME 1) 
+                  | 1 =>  Dec 1 (SOME 2) (SOME 4)
                   | 2 => Inc 2 (SOME 3)
                   | 3 => Inc 3 (SOME 1)
                   | 4 => Dec 3 (SOME 5) (SOME 6)
                   | 5 => Inc 1 (SOME 4)
-                  | 6 => Dec 1 (SOME 7) NONE
-                  | 7 => Dec 2 (SOME 8) (SOME 10)
-                  | 8 => Inc 3 (SOME 9)
-                  | 9 => Inc 4 (SOME 7)
-                  | 10 => Dec 4 (SOME 11) (SOME 12)
-                  | 11 => Inc 2 (SOME 10)
-                  | 12 => Dec 2 (SOME 6) (SOME 6) 
                 );
-                     (* state 12: 6 and 6 or 6 and NONE ? (it will not go to the second option anyways*)
-          q0:=1;
+          q0:=6;
           In:=[1];
-          Out:=3;
-        |>
+          Out:=2;
+|>
 End
 
-val tri = EVAL ``RUN Tri [6]``;
+val tri = EVAL ``RUN Tri [10]``;
+
+fun generate_machine_rwts thm = 
+  let val (mname,tm)= dest_eq (concl thm)
+      val qthm = SIMP_CONV (srw_ss()) [thm] (mk_comb(“rm_Q”, mname))
+      val states_t = rhs (concl qthm)
+      val states = pred_setSyntax.strip_set states_t
+      fun mktf k = SIMP_CONV (srw_ss()) [thm] (list_mk_comb(“rm_tf”, [mname,k]))
+      val tf_thms = map mktf states
+  in LIST_CONJ (qthm :: tf_thms)
+  end
+
+Theorem Tri_facts[simp] = generate_machine_rwts Tri_def
 
 
-Definition InvTri:
+
+Theorem Tri_correct:
+ rmcorr Tri 6 (λrs. rs = RS ∧ ∀k. k ∈ {2;3} ⇒ rs k = 0) NONE (λrs. rs 2 = tri (RS 1))
+Proof 
+  irule loop_correct >> simp[] >>
+  qexists_tac `(λrs. rs 2 + tri (rs 1) = tri (RS 1) ∧ rs 3 = 0)` >>
+  rw[] 
+  >- fs[]
+  >> irule rmcorr_inc >> simp[]
+  >> rw[APPLY_UPDATE_THM]
+  >> irule rmcorr_trans 
+  >> map_every qexists_tac [`(λrs. rs 1 = 0 ∧ rs 2 + tri (rs 3) = tri (RS 1) ∧ rs 3 = N)`, `4`]
+  >> rw[APPLY_UPDATE_THM]
+  >- (irule loop_correct >> simp[] 
+      >> qexists_tac `(λrs. rs 1 + rs 2 + tri (rs 1 + rs 3) = tri (RS 1) ∧ rs 1 + rs 3 = N)` >> rw[APPLY_UPDATE_THM]
+      >- fs[GSYM ADD1]
+      >- fs[]
+      >> irule rmcorr_inc >> simp[APPLY_UPDATE_THM]
+      >> irule rmcorr_inc >> simp[APPLY_UPDATE_THM]
+      >> irule rmcorr_stay >> rw[]
+      >> fs[]
+      )
+  >> irule loop_correct >> simp[] 
+  >> qexists_tac `λrs. rs 2 + tri (rs 1 + rs 3) = tri (RS 1) ∧ rs 1 + rs 3 = N`
+  >> rw[APPLY_UPDATE_THM]
+  >- fs[]
+  >- fs[]
+  >> irule rmcorr_Inc >> simp[]
+  >> irule rmcorr_stay >> simp[APPLY_UPDATE_THM]
+  >> rw[]
+  >> fs[]
+QED 
+
+
+Definition invTri:
   InvTri = <|
     Q:={1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16;17;18;19;20;21;22;23};
     tf:=(λs. 
@@ -1872,26 +1913,58 @@ Definition InvTri:
   |>
 End
 
-(* Pair f g n = npair (f n) (g n) *)
+Definition numPair:
+  dup 1 and 2 into addition 
+  run add
+  dup add.out into tri 
+run tri 
+dup tri.out into add'
+dup 2 into add' 
+run add'
+  In:=[1;2]
+End 
+
+(* Pair f g n = npair (f n) (g n) 
+f and g are machines *)
 Definition Pair:
-  numPair f g n = <|
-    Q:={};
-    tf:=();
-    q0:=;
-    In:=[];
-    Out:=;
-  |>
+  Pair f g = 
+    let   dup n into f.In
+          dup n into g.In
+          numPair = something something f.out g.out 
+
+      In := [n]
 End
+
+
+val Cn_def = Define `
+  Cn m ms = 
+    let isz = LENGTH (HD ms).In;
+        mms = MAPi (λi mm. mrInst (i+2) mm) (m::ms);
+        m'  = HD mms;
+        ms' = TL mms;
+        ics = FLAT (MAP (λmm. MAPi (λi r. dup (npair 0 i) r (npair 1 0)) mm.In) ms');
+        ocs = MAPi (λi mm. dup mm.Out (EL i m'.In) (npair 1 0)) ms';
+        mix = ics++ms'++ocs++[m'];
+        mix' = MAPi msInst mix;
+    in 
+      link_all mix' with In := MAP (npair 0) (GENLIST I isz)
+`;
 
 (* FST n = nfst n *)
 Definition FST:
-  FST n = <|
-    Q:={};
-    tf:=();
-    q0:=;
-    In:=[];
-    Out:=;
-  |>
+  FST = 
+    let tri = mrInst 1 (msInst 1 Tri);
+        invtri = mrInst 2 (msInst 2 invTri);
+        add = mrInst 3 (msInst 3 simp_add);
+        sub = mrInst 4 (msInst 4 simp_sub);
+        (* msInst and mrInst the dup machines *)
+        d0 = dup 0 (npair 2 5) 1 ++ dup 0 (npair 4 2) 1;
+        d1 = dup (npair 2 6) (npair 1 1) ;
+        mix = [d0 ; invtri ; d1 ; tri ; d2 ; add ; d3 ; sub ];
+        mix' = link_all 
+
+          In := [n]
+
 End
 
 (* SND n = nsnd n *)
@@ -1919,19 +1992,11 @@ QED
 
 
 (* TODO 
-DONE 1. sleep well :D 
-DONE 2. prove rmcorr_Inc
-
-    m.tf q0 = Inc r (SOME d)
-    ==>
-    (rmcorr m d (\rs. P (rs (| r |-> rs r - 1 |) /\ 0 < rs r) q Q
-      ==> 
-    rmcorr q0 p P q Q)
-
-DONE 3. finish new loop_corect  
-DONE 4. prove lst_correct using loop_correct
-DONE * fix dup_correct
+1. Prove invtri 
+2. prove composition
 5. prove npair shit 
+snd 
+fst 
 6. report
 7. Rewrite exp and fac proof etc with the loop theorem 
  *)
