@@ -1739,6 +1739,7 @@ Proof
   metis_tac[msInst_correct]
 QED 
 
+(*
 
 Theorem Cn_correct: 
   wfrm m1 ∧ wfrm m2 
@@ -1752,7 +1753,7 @@ Theorem Cn_correct:
 ⇒ rmcorr (link m1 m2) m1.q0 P NONE R
 Proof 
 QED 
-
+*)
 
 
 Definition lst_def:
@@ -1810,6 +1811,7 @@ Proof
 QED
 
 
+(* Rearrange state numbers (easier to read :O) *)
 Definition Tri_def:
   Tri = <|
           Q:={1;2;3;4;5;6;7};
@@ -1843,11 +1845,144 @@ fun generate_machine_rwts thm =
 
 Theorem Tri_facts[simp] = generate_machine_rwts Tri_def
 
-
-
 Theorem Tri_correct:
  rmcorr Tri 6 (λrs. rs = RS ∧ ∀k. k ∈ {2;3} ⇒ rs k = 0) NONE (λrs. rs 2 = tri (RS 1))
 Proof 
+  irule loop_correct >> simp[] >>
+  qexists_tac `(λrs. rs 2 + tri (rs 1) = tri (RS 1) ∧ rs 3 = 0)` >>
+  rw[] 
+  >- fs[]
+  >> irule rmcorr_inc >> simp[]
+  >> rw[APPLY_UPDATE_THM]
+  >> irule rmcorr_trans 
+  >> map_every qexists_tac [`(λrs. rs 1 = 0 ∧ rs 2 + tri (rs 3) = tri (RS 1) ∧ rs 3 = N)`, `4`]
+  >> rw[APPLY_UPDATE_THM]
+  >- (irule loop_correct >> simp[] 
+      >> qexists_tac `(λrs. rs 1 + rs 2 + tri (rs 1 + rs 3) = tri (RS 1) ∧ rs 1 + rs 3 = N)` >> rw[APPLY_UPDATE_THM]
+      >- fs[GSYM ADD1]
+      >- fs[]
+      >> irule rmcorr_inc >> simp[APPLY_UPDATE_THM]
+      >> irule rmcorr_inc >> simp[APPLY_UPDATE_THM]
+      >> irule rmcorr_stay >> rw[]
+      >> fs[]
+      )
+  >> irule loop_correct >> simp[] 
+  >> qexists_tac `λrs. rs 2 + tri (rs 1 + rs 3) = tri (RS 1) ∧ rs 1 + rs 3 = N`
+  >> rw[APPLY_UPDATE_THM]
+  >- fs[]
+  >- fs[]
+  >> irule rmcorr_inc >> simp[]
+  >> irule rmcorr_stay >> simp[APPLY_UPDATE_THM]
+  >> rw[]
+  >> fs[]
+QED 
+
+
+
+Definition invTri_def:
+  invTri = <|
+    Q := {1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16;17;18;19;20};
+    tf := (λs. 
+              case s of 
+                1 => Dec 6 (SOME 20) (SOME 2)
+              | 2 => Dec 2 NONE NONE
+              | 3 => Dec 2 (SOME 4) (SOME 6)
+              | 4 => Dec 1 (SOME 5) (SOME 5)
+              | 5 => Inc 3 (SOME 3)
+              | 6 => Dec 3 (SOME 7) (SOME 8)
+              | 7 => Inc 2 (SOME 6)
+              | 8 => Inc 2 (SOME 9)
+              | 9 => Dec 2 (SOME 10) (SOME 16)
+              | 10 => Inc 4 (SOME 11)
+              | 11 => Dec 1 (SOME 12) (SOME 13)
+              | 12 => Inc 5 (SOME 9)
+              | 13 => Dec 6 (SOME 14) (SOME 14)
+              | 14 => Dec 2 (SOME 15) (SOME 9)
+              | 15 => Inc 4 (SOME 14) 
+              | 16 => Dec 4 (SOME 17) (SOME 18)
+              | 17 => Inc 2 (SOME 16)
+              | 18 => Dec 5 (SOME 19) (SOME 1)
+              | 19 => Inc 1 (SOME 18)
+              | 20 => Inc 6 (SOME 3)
+               );
+    q0 := 20;
+    In := [1];
+    Out := 2;
+  |>
+End 
+
+val t2 = EVAL ``RUN invTri  [25]``;
+
+Theorem invTri_facts[simp] = generate_machine_rwts invTri_def
+
+Theorem invTri_correct:
+ rmcorr invTri 20 (λrs. rs = RS ∧ ∀k. k ∈ {2;3;4;5;6} ⇒ rs k = 0) NONE (λrs. rs 2 = invtri (RS 1))
+Proof 
+  irule rmcorr_inc >> simp[] >>
+  irule rmcorr_trans >> simp[] >> rw[] >>
+  map_every qexists_tac [`λrs. rs 2 = 0
+                             ∧ SND (invtri0 (rs 1) (rs 3)) = invtri (RS 1)
+                             ∧ ∀k. k ∉ {1;2;3;6} ⇒ rs k = RS k 
+                             ∧ rs 6 = 1`,`6`] >> rw[] 
+  (* loop: 3 4 6 *)                      
+  >- (irule loop_correct >> simp[] >>
+  qexists_tac `λrs.   SND (invtri0 ((rs 1) - (rs 2)) ((rs 2) + (rs 3))) = invtri (RS 1)
+                    ∧ ∀k. k ∉ {1;2;3;6} ⇒ rs k = RS k 
+                    ∧ rs 6 = 1` >> 
+  rw[]
+  >- (rw[invtri_def, APPLY_UPDATE_THM] >> rw[Once invtri0_def]
+      >- (`rs⦇6 ↦ rs 6 − 1⦈ 3 = 0` by fs[] >> 
+          `rs⦇6 ↦ rs 6 − 1⦈ 2 = 0` by fs[] >> fs[UPDATE_APPLY] >>
+          `rs 1 = 0` by fs[] >> rw[Once invtri0_def])
+      >> `rs⦇6 ↦ rs 6 − 1⦈ 3 = 0` by fs[] >> 
+         `rs⦇6 ↦ rs 6 − 1⦈ 2 = 0` by fs[] >> fs[UPDATE_APPLY] >>
+         `SND (invtri0 (rs 1) 0) = SND (invtri0 (rs 1 − 1) 1)` suffices_by simp[] >>
+         rw[Once invtri0_def])
+  >- rw[APPLY_UPDATE_THM] 
+  >- (fs[DISJ_IMP_THM, FORALL_AND_THM] >> fs[UPDATE_APPLY])
+  >- fs[DISJ_IMP_THM, FORALL_AND_THM]
+  >> irule rmcorr_dec >> simp[] 
+  >> rw[APPLY_UPDATE_THM]
+  >- (irule rmcorr_inc >> simp[] >> 
+      irule rmcorr_stay >> simp[] >> rw[APPLY_UPDATE_THM] >>
+      )
+  >>)    
+
+  irule rmcorr_dec >> simp[] >>
+
+ 
+(* state 1 -> 2 *)
+  irule rmcorr_inc >> simp[] >> 
+  irule rmcorr_trans >> simp[] >> rw[]
+  >> map_every qexists_tac [`λrs. ( (rs 1 + rs 4) < (rs 2 + rs 4) ⇒ rs 3 = 1) 
+                                ∧ ( (rs 1 + rs 4) >= (rs 2 + rs 4) ⇒ rs 3 = 0) 
+                                ∧ ( rs 3 = 1 ⇒ (rs 2 + rs 4 - 1) = invtri (RS 1) 
+                                ∧ ( SND (invtri0 (rs 1 + rs 4) (rs 2 + rs 4 - 1)) = invtri (RS 1)))`, `7`]
+  >> rw[APPLY_UPDATE_THM]
+  (* state 2 -> 7 *)
+  >- (irule rmcorr_dec >> simp[] >> rw[]
+      >- (irule rmcorr_stay >> rw[APPLY_UPDATE_THM, FUN_EQ_THM])
+      (* 3 -> 7 *)
+      >> irule rmcorr_dec >> simp[] >> rw[APPLY_UPDATE_THM]
+        (* 5 -> 7 *)
+      >- (irule rmcorr_inc >> simp[] >> 
+          irule rmcorr_inc >> simp[] >> 
+          irule rmcorr_stay >> rw[APPLY_UPDATE_THM]
+          >- (`rs 3 - 1 = 0` by metis_tac[] >> fs[])
+          >- (rw[APPLY_UPDATE_THM, invtri_def]
+              >> fs[DISJ_IMP_THM, FORALL_AND_THM]
+              >> rw[Once invtri0_def]
+              )
+          >> `rs 2 - 1 = 0` by metis_tac[]
+          >> `rs 4 = 0` by metis_tac[] >> 
+          >> rw[invtri_def, APPLY_UPDATE_THM]
+        (* 4 -> 7 *)
+      >> 
+      )
+  >>
+
+  >- (* 7 -> NONE *) cheat
+  >> (* 3 -> 
   irule loop_correct >> simp[] >>
   qexists_tac `(λrs. rs 2 + tri (rs 1) = tri (RS 1) ∧ rs 3 = 0)` >>
   rw[] 
@@ -1877,38 +2012,6 @@ Proof
   >> fs[]
 QED 
 
-
-
-Definition invTriV:
-  invTriV = <|
-    Q   := {1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16};
-    tf  := (λs.
-             case s of 
-               1 => Inc 2 (SOME 2) 
-             | 2 => Dec 2 (SOME 3) (SOME 7)
-             | 3 => Dec 1 (SOME 4) (SOME 5)
-             | 4 => Inc 4 (SOME 2)
-             | 5 => Inc 3 (SOME 6)
-             | 6 => Inc 2 (SOME 7)
-             | 7 => Dec 4 (SOME 8) (SOME 10)
-             | 8 => Inc 2 (SOME 9)
-             | 9 => Inc 1 (SOME 7) 
-             | 10 => Dec 3 (SOME 11) (SOME 12)
-             | 11 => Dec 2 NONE NONE 
-             | 12 => Dec 2 (SOME 13) (SOME 15)
-             | 13 => Dec 1 (SOME 14) (SOME 14)
-             | 14 => Inc 3 (SOME 12)
-             | 15 => Dec 3 (SOME 16) (SOME 1)
-             | 16 => Inc 2 (SOME 15)
-            );
-    q0  := 1;
-    In  := [1];
-    Out := 2;
-  |>
-End
-
-
-val t2 = EVAL ``RUN invTriV [199]``;
 
 Definition numPair:
   dup 1 and 2 into addition 
