@@ -22,3 +22,6 @@ testingScript.uo
 testingTheory.ui
 testingTheory.uo
 .DS_Store
+testingTheory.dat
+testingTheory.sig
+testingTheory.sml
