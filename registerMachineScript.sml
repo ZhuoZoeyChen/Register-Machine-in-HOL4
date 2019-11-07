@@ -1880,40 +1880,35 @@ QED
 
 
 Definition invTri_def:
-  invTri = <|
-    Q := {1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16;17;18;19;20};
+  invTri = <| 
+    Q := {1;2;3;4;5;6;7;8};
     tf := (λs. 
               case s of 
-                1 => Dec 6 (SOME 20) (SOME 2)
-              | 2 => Dec 2 NONE NONE
-              | 3 => Dec 2 (SOME 4) (SOME 6)
-              | 4 => Dec 1 (SOME 5) (SOME 5)
-              | 5 => Inc 3 (SOME 3)
-              | 6 => Dec 3 (SOME 7) (SOME 8)
-              | 7 => Inc 2 (SOME 6)
-              | 8 => Inc 2 (SOME 9)
-              | 9 => Dec 2 (SOME 10) (SOME 16)
-              | 10 => Inc 4 (SOME 11)
-              | 11 => Dec 1 (SOME 12) (SOME 13)
-              | 12 => Inc 5 (SOME 9)
-              | 13 => Dec 6 (SOME 14) (SOME 14)
-              | 14 => Dec 2 (SOME 15) (SOME 9)
-              | 15 => Inc 4 (SOME 14) 
-              | 16 => Dec 4 (SOME 17) (SOME 18)
-              | 17 => Inc 2 (SOME 16)
-              | 18 => Dec 5 (SOME 19) (SOME 1)
-              | 19 => Inc 1 (SOME 18)
-              | 20 => Inc 6 (SOME 3)
-               );
-    q0 := 20;
+                 1 => Inc 2 (SOME 2)
+               | 2 => Dec 2 (SOME 3) (SOME 7)
+               | 3 => Dec 1 (SOME 4) (SOME 5)
+               | 4 => Inc 3 (SOME 2)
+               | 5 => Dec 3 (SOME 6) NONE
+               | 6 => Inc 2 (SOME 5)
+               | 7 => Dec 3 (SOME 8) (SOME 1)
+               | 8 => Inc 2 (SOME 7)
+                );
+    q0 := 1;
     In := [1];
     Out := 2;
   |>
 End 
 
+
 val t2 = EVAL ``RUN invTri  [25]``;
+val t2 = EVAL ``RUN invTri  [199]``;
+val t2 = EVAL ``RUN invTri  [13]``;
+val t2 = EVAL ``RUN invTri  [0]``;
+val t2 = EVAL ``RUN invTri  [10000]``;
 
 Theorem invTri_facts[simp] = generate_machine_rwts invTri_def
+
+(*
 
 Theorem invTri_correct:
  rmcorr invTri 20 (λrs. rs = RS ∧ ∀k. k ∈ {2;3;4;5;6} ⇒ rs k = 0) NONE (λrs. rs 2 = invtri (RS 1))
@@ -1982,7 +1977,7 @@ Proof
   >>
 
   >- (* 7 -> NONE *) cheat
-  >> (* 3 -> 
+  >> (* 3 -> *)
   irule loop_correct >> simp[] >>
   qexists_tac `(λrs. rs 2 + tri (rs 1) = tri (RS 1) ∧ rs 3 = 0)` >>
   rw[] 
@@ -2011,7 +2006,9 @@ Proof
   >> rw[]
   >> fs[]
 QED 
+*)
 
+(*
 
 Definition numPair:
   dup 1 and 2 into addition 
@@ -2078,7 +2075,7 @@ Definition SND:
   |>
 End
 
-
+*)
 
 (*
 
