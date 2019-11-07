@@ -6,9 +6,9 @@ open indexedListsTheory;
 open numeralTheory;
 open registerMachineTheory;
 
-Theorem _ = new_theory "testing";
+val _ = new_theory "testing";
 
-Theorem _ = computeLib.set_skip computeLib.the_compset ``COND`` (SOME 1);
+val _ = computeLib.set_skip computeLib.the_compset ``COND`` (SOME 1);
 
 fun teval n t = 
   let 
@@ -149,4 +149,4 @@ Theorem pr_mult = EVAL ``RUN (Pr (const 0) (Pr identity add1))``;
 Theorem pr0 = EVAL ``RUN (Pr (const 1) (multiplication with In:=[1;0;10])) [3;1]``;
 Theorem pr1 = EVAL ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [3;2]``;*)
 
-Theorem _ = export_theory()
+val _ = export_theory()
