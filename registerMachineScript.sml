@@ -977,7 +977,21 @@ End
    *)
 
 
+(* Cn f g = f o g *)
+Definition Cn_def:
+  Cn f g = 
+      let f' = mrInst 1 f;
+          g' = mrInst 2 g;
+          d  = dup 0 (EL 0 g'.In) 2;
+          d1 = dup g'.Out (EL 0 f'.In) 2;
+          mix = [d; g'; d1; f'];
+          mix' = MAPi msInst mix;
+      in 
+        link_all mix' with In := [0]
+End
 
+(* Old Cn Definition *)
+(*
 val Cn_def = Define `
   Cn m ms = 
     let isz = LENGTH (HD ms).In;
@@ -991,6 +1005,7 @@ val Cn_def = Define `
     in 
       link_all mix' with In := MAP (npair 0) (GENLIST I isz)
 `;
+*)
 
 
 (* 
@@ -1958,77 +1973,92 @@ Proof
   >> rw[APPLY_UPDATE_THM]
 QED 
 
-(*
-
-Definition numPair:
-  dup 1 and 2 into addition 
-  run add
-  dup add.out into tri 
-run tri 
-dup tri.out into add'
-dup 2 into add' 
-run add'
-  In:=[1;2]
-End 
 
 (* Pair f g n = npair (f n) (g n) 
-f and g are machines *)
-Definition Pair:
-  Pair f g = 
-    let   dup n into f.In
-          dup n into g.In
-          numPair = something something f.out g.out 
 
-      In := [n]
+npair 0 0 = 0 (input register) 
+npair 0 2 = 5 (input register) 
+npair 0 1 = 2 (scratch register) 
+*)
+Definition Pair_def:
+  Pair = 
+        let 
+            add1 = mrInst 1 simp_add;
+            tri' = mrInst 2 Tri;
+            add2 = mrInst 3 simp_add;
+
+            dup00_1 = dup 0 (EL 0 add1.In) 2;
+            dup01_1 = dup 5 (EL 1 add1.In) 2;
+            dup01_3 = dup 5 (EL 0 add2.In) 2;
+            
+            dup1_2 = dup add1.Out (EL 0 tri'.In) 2;
+            
+            dup2_3 = dup tri'.Out (EL 1 add2.In) 2;
+
+            mix = [dup00_1; dup01_1; dup01_3; add1; dup1_2; tri'; dup2_3; add2];
+            mix' = MAPi msInst mix;
+        in 
+          link_all mix' with In := [0;5]
 End
 
 
-val Cn_def = Define `
-  Cn m ms = 
-    let isz = LENGTH (HD ms).In;
-        mms = MAPi (λi mm. mrInst (i+2) mm) (m::ms);
-        m'  = HD mms;
-        ms' = TL mms;
-        ics = FLAT (MAP (λmm. MAPi (λi r. dup (npair 0 i) r (npair 1 0)) mm.In) ms');
-        ocs = MAPi (λi mm. dup mm.Out (EL i m'.In) (npair 1 0)) ms';
-        mix = ics++ms'++ocs++[m'];
-        mix' = MAPi msInst mix;
-    in 
-      link_all mix' with In := MAP (npair 0) (GENLIST I isz)
-`;
 
-(* FST n = nfst n *)
-Definition FST:
+(* FST n = nfst n 
+    FST.In = 0; 
+    FST.Out = 16 (sub.Out) 
+
+npair 0 0 = 0 (input register) 
+npair 0 1 = 2 (scratch register) 
+npair 4 1 = 16 (output register )
+*)
+Definition FST_def:
   FST = 
-    let tri = mrInst 1 (msInst 1 Tri);
-        invtri = mrInst 2 (msInst 2 invTri);
-        add = mrInst 3 (msInst 3 simp_add);
-        sub = mrInst 4 (msInst 4 simp_sub);
-        (* msInst and mrInst the dup machines *)
-        d0 = dup 0 (npair 2 5) 1 ++ dup 0 (npair 4 2) 1;
-        d1 = dup (npair 2 6) (npair 1 1) ;
-        mix = [d0 ; invtri ; d1 ; tri ; d2 ; add ; d3 ; sub ];
-        mix' = link_all 
+        let 
+            tri' = mrInst 1 Tri;
+            invtri' = mrInst 2 invTri;
+            add = mrInst 3 simp_add;
+            sub = mrInst 4 simp_sub;
 
-          In := [n]
+            dup0_2 = dup 0 (EL 0 invtri'.In) 2;
+            dup0_4 = dup 0 (EL 1 sub.In) 2;
+            
+            dup2_3 = dup invtri'.Out (EL 0 add.In) 2;
+            dup2_1 = dup invtri'.Out (EL 0 tri'.In) 2;
+            
+            dup1_3 = dup tri'.Out (EL 1 add.In) 2;
 
+            dup3_4 = dup add.Out (EL 0 sub.In) 2;
+
+            mix = [dup0_2; dup0_4; invtri'; dup2_3; dup2_1; tri'; dup1_3; add; dup3_4; sub];
+            mix' = MAPi msInst mix;
+        in 
+          link_all mix' with In := [0]
 End
+
 
 (* SND n = nsnd n *)
-Definition SND:
-  SND n = <|
-    Q:={};
-    tf:=();
-    q0:=;
-    In:=[1];
-    Out:=;
-  |>
+Definition SND_def:
+  SND = 
+        let 
+            invtri' = mrInst 1 invTri;
+            tri' = mrInst 2 Tri;
+            sub = mrInst 3 simp_sub;
+
+            dup0_1 = dup 0 (EL 0 invtri'.In) 2;
+            dup0_3 = dup 0 (EL 0 sub.In) 2;
+            
+            dup1_2 = dup invtri'.Out (EL 0 tri'.In) 2;
+            
+            dup2_3 = dup tri'.Out (EL 1 sub.In) 2;
+
+            mix = [dup0_1; dup0_3; invtri'; dup1_2; tri'; dup2_3; sub];
+            mix' = MAPi msInst mix;
+        in 
+          link_all mix' with In := [0]
 End
 
-*)
 
 (*
-
 Theorem Cn1_correct:
   correct1 f1 m1 ∧ correct1 f2 m2 ⇒ ∀n. RUN (Cn m1 [m2]) [n] = (f1 o f2) n  
 Proof
@@ -2039,7 +2069,7 @@ QED
 
 
 (* TODO 
-1. Prove invtri 
+DONE 1. Prove invtri 
 2. prove composition
 5. prove npair shit 
 snd 
