@@ -149,4 +149,24 @@ Theorem pr_mult = EVAL ``RUN (Pr (const 0) (Pr identity add1))``;
 Theorem pr0 = EVAL ``RUN (Pr (const 1) (multiplication with In:=[1;0;10])) [3;1]``;
 Theorem pr1 = EVAL ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [3;2]``;*)
 
+(* invTri tests*)
+
+Theorem inv0 = EVAL ``RUN invTri  [0]``;
+Theorem inv1 = EVAL ``RUN invTri  [1]``;
+Theorem inv2 = EVAL ``RUN invTri  [2]``;
+Theorem inv3 = EVAL ``RUN invTri  [3]``;
+Theorem inv4 = EVAL ``RUN invTri  [4]``;
+Theorem inv5 = EVAL ``RUN invTri  [5]``;
+Theorem inv25 = EVAL ``RUN invTri  [25]``;
+Theorem inv100 = EVAL ``RUN invTri  [100]``;
+Theorem inv0' = EVAL ``invtri  0``;
+Theorem inv1' = EVAL ``invtri  1``;
+Theorem inv2' = EVAL ``invtri  2``;
+Theorem inv3' = EVAL ``invtri  3``;
+Theorem inv4' = EVAL ``invtri  4``;
+Theorem inv5' = EVAL ``invtri  5``;
+Theorem inv6' = EVAL ``invtri  6``;
+Theorem inv25' = EVAL ``invtri  25``;
+Theorem inv100' = EVAL ``invtri  100``;
+
 val _ = export_theory()
