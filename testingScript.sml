@@ -131,9 +131,14 @@ Theorem fac_t1 = EVAL ``RUN factorial [1]``;
 Theorem fac_t1 = EVAL ``RUN factorial [3]``;
 Theorem fac_t1 = EVAL ``RUN factorial [5]``;
 
-(* Cn *)
+(* old Cn *)
+(*
 Theorem test_Cn_iden = EVAL ``RUN (Cn identity [identity]) [5]``;
 Theorem test_Cn_add = EVAL ``RUN (Cn addition [addition; addition]) [2;2]``;
+*)
+(* Cn tests *)
+Theorem Cni_i = EVAL ``RUN (Cn identity identity) [3]``;
+Theorem Cna_a = EVAL ``RUN (Cn add1 add1) [7]``;
 
 (* loopguard *)
 Theorem lpg = EVAL``loopguard (npair 0 2) ``;
@@ -168,5 +173,40 @@ Theorem inv5' = EVAL ``invtri  5``;
 Theorem inv6' = EVAL ``invtri  6``;
 Theorem inv25' = EVAL ``invtri  25``;
 Theorem inv100' = EVAL ``invtri  100``;
+
+(* FST tests *)
+Theorem FST0 = EVAL``RUN FST [0]``;
+Theorem nfst0 = EVAL``nfst 0``;
+Theorem FST0 = EVAL``RUN FST [1]``;
+Theorem nfst0 = EVAL``nfst 1``;
+Theorem FST0 = EVAL``RUN FST [10]``;
+Theorem nfst0 = EVAL``nfst 10``;
+Theorem FST0 = EVAL``RUN FST [25]``;
+Theorem nfst0 = EVAL``nfst 25``;
+
+(* SND tests *)
+Theorem SND0 = EVAL``RUN SND [0]``;
+Theorem nsnd0 = EVAL``nsnd 0``;
+Theorem SND0 = EVAL``RUN SND [1]``;
+Theorem nsnd0 = EVAL``nsnd 1``;
+Theorem SND0 = EVAL``RUN SND [5]``;
+Theorem nsnd0 = EVAL``nsnd 5``;
+Theorem SND0 = EVAL``RUN SND [18]``;
+Theorem nsnd0 = EVAL``nsnd 18``;
+
+(* Pair tests *)
+Theorem npair0_0 = EVAL ``npair 0 0``;
+Theorem Pair0_0 = EVAL ``RUN Pair [0;0]``;
+Theorem npair0_1 = EVAL ``npair 0 1``;
+Theorem Pair0_1 = EVAL ``RUN Pair [0;1]``;
+Theorem npair0_5 = EVAL ``npair 0 5``;
+Theorem Pair0_5 = EVAL ``RUN Pair [0;5]``;
+Theorem npair5_5 = EVAL ``npair 5 5``;
+Theorem Pair5_5 = EVAL ``RUN Pair [5;5]``;
+Theorem npair7_88 = EVAL ``npair 7 88``;
+Theorem Pair7_88 = EVAL ``RUN Pair [7;88]``;
+
+
+
 
 val _ = export_theory()
