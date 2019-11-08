@@ -1811,23 +1811,22 @@ Proof
 QED
 
 
-(* Rearrange state numbers (easier to read :O) *)
 Definition Tri_def:
   Tri = <|
-          Q:={1;2;3;4;5;6;7};
+          Q :={1;2;3;4;5;6;7};
           tf :=(λs. 
                   case s of 
-                  | 6 => Dec 1 (SOME 7) NONE
-                  | 7 => Inc 2 (SOME 1) 
-                  | 1 =>  Dec 1 (SOME 2) (SOME 4)
-                  | 2 => Inc 2 (SOME 3)
-                  | 3 => Inc 3 (SOME 1)
-                  | 4 => Dec 3 (SOME 5) (SOME 6)
-                  | 5 => Inc 1 (SOME 4)
+                  | 1 => Dec 1 (SOME 2) NONE
+                  | 2 => Inc 2 (SOME 3) 
+                  | 3 => Dec 1 (SOME 4) (SOME 6)
+                  | 4 => Inc 2 (SOME 5)
+                  | 5 => Inc 3 (SOME 3)
+                  | 6 => Dec 3 (SOME 7) (SOME 1)
+                  | 7 => Inc 1 (SOME 6)
                 );
-          q0:=6;
-          In:=[1];
-          Out:=2;
+          q0 := 1;
+          In := [1];
+          Out := 2;
 |>
 End
 
@@ -1846,7 +1845,7 @@ fun generate_machine_rwts thm =
 Theorem Tri_facts[simp] = generate_machine_rwts Tri_def
 
 Theorem Tri_correct:
- rmcorr Tri 6 (λrs. rs = RS ∧ ∀k. k ∈ {2;3} ⇒ rs k = 0) NONE (λrs. rs 2 = tri (RS 1))
+ rmcorr Tri 1 (λrs. rs = RS ∧ ∀k. k ∈ {2;3} ⇒ rs k = 0) NONE (λrs. rs 2 = tri (RS 1))
 Proof 
   irule loop_correct >> simp[] >>
   qexists_tac `(λrs. rs 2 + tri (rs 1) = tri (RS 1) ∧ rs 3 = 0)` >>
@@ -1855,7 +1854,7 @@ Proof
   >> irule rmcorr_inc >> simp[]
   >> rw[APPLY_UPDATE_THM]
   >> irule rmcorr_trans 
-  >> map_every qexists_tac [`(λrs. rs 1 = 0 ∧ rs 2 + tri (rs 3) = tri (RS 1) ∧ rs 3 = N)`, `4`]
+  >> map_every qexists_tac [`(λrs. rs 1 = 0 ∧ rs 2 + tri (rs 3) = tri (RS 1) ∧ rs 3 = N)`, `6`]
   >> rw[APPLY_UPDATE_THM]
   >- (irule loop_correct >> simp[] 
       >> qexists_tac `(λrs. rs 1 + rs 2 + tri (rs 1 + rs 3) = tri (RS 1) ∧ rs 1 + rs 3 = N)` >> rw[APPLY_UPDATE_THM]
@@ -1880,133 +1879,84 @@ QED
 
 
 Definition invTri_def:
-  invTri = <| 
-    Q := {1;2;3;4;5;6;7;8};
-    tf := (λs. 
-              case s of 
-                 1 => Inc 2 (SOME 2)
-               | 2 => Dec 2 (SOME 3) (SOME 7)
-               | 3 => Dec 1 (SOME 4) (SOME 5)
-               | 4 => Inc 3 (SOME 2)
-               | 5 => Dec 3 (SOME 6) NONE
-               | 6 => Inc 2 (SOME 5)
-               | 7 => Dec 3 (SOME 8) (SOME 1)
-               | 8 => Inc 2 (SOME 7)
-                );
-    q0 := 1;
-    In := [1];
-    Out := 2;
-  |>
-End 
+  invTri = <|
+      Q := {1;2;3;4;5;6;7;8};
+      tf := (λs. case s of 
+                     1 => Dec 1 (SOME 2) (SOME 7)
+                  |  2 => Dec 2 (SOME 3) (SOME 4)
+                  |  3 => Inc 3 (SOME 1)
+                  |  4 => Dec 3 (SOME 5) (SOME 6)
+                  |  5 => Inc 2 (SOME 4)
+                  |  6 => Inc 2 (SOME 1)
+                  |  7 => Dec 3 (SOME 8) NONE
+                  |  8 => Inc 2 (SOME 7) 
+                   );
+      q0 := 1;
+      In := [1];
+      Out := 2;
+    |>
+End
 
-
-val t2 = EVAL ``RUN invTri  [25]``;
-val t2 = EVAL ``RUN invTri  [199]``;
-val t2 = EVAL ``RUN invTri  [13]``;
-val t2 = EVAL ``RUN invTri  [0]``;
-val t2 = EVAL ``RUN invTri  [10000]``;
 
 Theorem invTri_facts[simp] = generate_machine_rwts invTri_def
 
-(*
-
 Theorem invTri_correct:
- rmcorr invTri 20 (λrs. rs = RS ∧ ∀k. k ∈ {2;3;4;5;6} ⇒ rs k = 0) NONE (λrs. rs 2 = invtri (RS 1))
+  rmcorr invTri 1 (λrs. rs = RS ∧ ∀k. k ∈ {2;3} ⇒ rs k = 0) NONE (λrs. rs 2 = invtri (RS 1))
 Proof 
-  irule rmcorr_inc >> simp[] >>
-  irule rmcorr_trans >> simp[] >> rw[] >>
-  map_every qexists_tac [`λrs. rs 2 = 0
-                             ∧ SND (invtri0 (rs 1) (rs 3)) = invtri (RS 1)
-                             ∧ ∀k. k ∉ {1;2;3;6} ⇒ rs k = RS k 
-                             ∧ rs 6 = 1`,`6`] >> rw[] 
-  (* loop: 3 4 6 *)                      
-  >- (irule loop_correct >> simp[] >>
-  qexists_tac `λrs.   SND (invtri0 ((rs 1) - (rs 2)) ((rs 2) + (rs 3))) = invtri (RS 1)
-                    ∧ ∀k. k ∉ {1;2;3;6} ⇒ rs k = RS k 
-                    ∧ rs 6 = 1` >> 
+  irule rmcorr_trans >> simp[] >>
+  map_every qexists_tac [`λrs. (rs 3 + rs 2) = invtri (RS 1)`,`7`] >>
   rw[]
-  >- (rw[invtri_def, APPLY_UPDATE_THM] >> rw[Once invtri0_def]
-      >- (`rs⦇6 ↦ rs 6 − 1⦈ 3 = 0` by fs[] >> 
-          `rs⦇6 ↦ rs 6 − 1⦈ 2 = 0` by fs[] >> fs[UPDATE_APPLY] >>
-          `rs 1 = 0` by fs[] >> rw[Once invtri0_def])
-      >> `rs⦇6 ↦ rs 6 − 1⦈ 3 = 0` by fs[] >> 
-         `rs⦇6 ↦ rs 6 − 1⦈ 2 = 0` by fs[] >> fs[UPDATE_APPLY] >>
-         `SND (invtri0 (rs 1) 0) = SND (invtri0 (rs 1 − 1) 1)` suffices_by simp[] >>
-         rw[Once invtri0_def])
-  >- rw[APPLY_UPDATE_THM] 
-  >- (fs[DISJ_IMP_THM, FORALL_AND_THM] >> fs[UPDATE_APPLY])
-  >- fs[DISJ_IMP_THM, FORALL_AND_THM]
-  >> irule rmcorr_dec >> simp[] 
-  >> rw[APPLY_UPDATE_THM]
-  >- (irule rmcorr_inc >> simp[] >> 
-      irule rmcorr_stay >> simp[] >> rw[APPLY_UPDATE_THM] >>
-      )
-  >>)    
-
-  irule rmcorr_dec >> simp[] >>
-
- 
-(* state 1 -> 2 *)
-  irule rmcorr_inc >> simp[] >> 
-  irule rmcorr_trans >> simp[] >> rw[]
-  >> map_every qexists_tac [`λrs. ( (rs 1 + rs 4) < (rs 2 + rs 4) ⇒ rs 3 = 1) 
-                                ∧ ( (rs 1 + rs 4) >= (rs 2 + rs 4) ⇒ rs 3 = 0) 
-                                ∧ ( rs 3 = 1 ⇒ (rs 2 + rs 4 - 1) = invtri (RS 1) 
-                                ∧ ( SND (invtri0 (rs 1 + rs 4) (rs 2 + rs 4 - 1)) = invtri (RS 1)))`, `7`]
-  >> rw[APPLY_UPDATE_THM]
-  (* state 2 -> 7 *)
-  >- (irule rmcorr_dec >> simp[] >> rw[]
-      >- (irule rmcorr_stay >> rw[APPLY_UPDATE_THM, FUN_EQ_THM])
-      (* 3 -> 7 *)
-      >> irule rmcorr_dec >> simp[] >> rw[APPLY_UPDATE_THM]
-        (* 5 -> 7 *)
-      >- (irule rmcorr_inc >> simp[] >> 
-          irule rmcorr_inc >> simp[] >> 
-          irule rmcorr_stay >> rw[APPLY_UPDATE_THM]
-          >- (`rs 3 - 1 = 0` by metis_tac[] >> fs[])
-          >- (rw[APPLY_UPDATE_THM, invtri_def]
-              >> fs[DISJ_IMP_THM, FORALL_AND_THM]
-              >> rw[Once invtri0_def]
-              )
-          >> `rs 2 - 1 = 0` by metis_tac[]
-          >> `rs 4 = 0` by metis_tac[] >> 
-          >> rw[invtri_def, APPLY_UPDATE_THM]
-        (* 4 -> 7 *)
-      >> 
-      )
-  >>
-
-  >- (* 7 -> NONE *) cheat
-  >> (* 3 -> *)
-  irule loop_correct >> simp[] >>
-  qexists_tac `(λrs. rs 2 + tri (rs 1) = tri (RS 1) ∧ rs 3 = 0)` >>
-  rw[] 
-  >- fs[]
-  >> irule rmcorr_inc >> simp[]
-  >> rw[APPLY_UPDATE_THM]
-  >> irule rmcorr_trans 
-  >> map_every qexists_tac [`(λrs. rs 1 = 0 ∧ rs 2 + tri (rs 3) = tri (RS 1) ∧ rs 3 = N)`, `4`]
-  >> rw[APPLY_UPDATE_THM]
-  >- (irule loop_correct >> simp[] 
-      >> qexists_tac `(λrs. rs 1 + rs 2 + tri (rs 1 + rs 3) = tri (RS 1) ∧ rs 1 + rs 3 = N)` >> rw[APPLY_UPDATE_THM]
-      >- fs[GSYM ADD1]
-      >- fs[]
-      >> irule rmcorr_inc >> simp[APPLY_UPDATE_THM]
-      >> irule rmcorr_inc >> simp[APPLY_UPDATE_THM]
-      >> irule rmcorr_stay >> rw[]
+  (* LOOP *)
+  >- (irule loop_correct >> simp[] >> 
+      qexists_tac `λrs. SND (invtri0 (rs 1 + rs 3) (rs 2 + rs 3)) = invtri (RS 1)` >>
+      rw[]
+      >- rw[invtri_def]
+      >- fs[Once invtri0_def]
+      >> rw[APPLY_UPDATE_THM]
+      (*     -> 4 (-> 5) -> 6
+         2                    -> 1
+                   -> 3              *)
+      >> irule rmcorr_dec >> simp[]
+      >> rw[APPLY_UPDATE_THM]
+        (* 2    -> 4 (-> 5) -> 6 ->   1*)
+      >- (irule rmcorr_trans >> simp[] >>
+          map_every qexists_tac [`λrs. rs 3 = 0 ∧ rs 1 = N ∧
+                 SND (invtri0 (rs 1 + rs 2 + 1) (rs 2)) = invtri (RS 1)` ,`6`] >>
+          rw[]
+            (* 4 -> 6 *)
+          >- (irule loop_correct >> simp[] >>
+               qexists_tac `λrs. rs 1 = N ∧ 
+                  SND (invtri0 (rs 1 + rs 2 + rs 3 + 1) (rs 2 + rs 3)) = invtri (RS 1)` >> rw[]
+               >- fs[Once invtri0_def]
+               >- fs[Once invtri0_def]
+               >> irule rmcorr_inc >> simp[]
+               >> irule rmcorr_stay >> simp[] 
+               >> rw[APPLY_UPDATE_THM]
+               >> fs[])
+            (* 6 -> 1 *)
+          >> irule rmcorr_inc >> simp[]
+          >> rw[APPLY_UPDATE_THM]
+          >> irule rmcorr_stay >> simp[] 
+          >> rw[]
+          >> fs[]
+          >> `invtri0 (rs 1 + rs 2) (rs 2 − 1) = invtri0 (rs 1) (rs 2)` by simp[Once invtri0_def]
+          >> metis_tac[]
+          )
+        (* 2 -> 3 -> 1*)
+      >> irule rmcorr_inc >> simp[]
+      >> rw[APPLY_UPDATE_THM]
+      >> irule rmcorr_stay >> simp[] 
+      >> rw[]
       >> fs[]
       )
-  >> irule loop_correct >> simp[] 
-  >> qexists_tac `λrs. rs 2 + tri (rs 1 + rs 3) = tri (RS 1) ∧ rs 1 + rs 3 = N`
+  (* RETURN r2+r3 *)
+  >> irule loop_correct >> simp[]
+  >> qexists_tac `λrs. rs 3 + rs 2 = tri⁻¹ (RS 1)`
   >> rw[APPLY_UPDATE_THM]
-  >- fs[]
-  >- fs[]
-  >> irule rmcorr_Inc >> simp[]
-  >> irule rmcorr_stay >> simp[APPLY_UPDATE_THM]
-  >> rw[]
-  >> fs[]
+  >> irule rmcorr_inc >> simp[]
+  >> irule rmcorr_stay >> simp[] 
+  >> rw[APPLY_UPDATE_THM]
 QED 
-*)
 
 (*
 
