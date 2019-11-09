@@ -982,8 +982,8 @@ Definition Cn_def:
   Cn f g = 
       let f' = mrInst 1 f;
           g' = mrInst 2 g;
-          d  = dup 0 (EL 0 g'.In) 2;
-          d1 = dup g'.Out (EL 0 f'.In) 2;
+          d  = dup 0 (HD g'.In) 2;
+          d1 = dup g'.Out (HD f'.In) 2;
           mix = [d; g'; d1; f'];
           mix' = MAPi msInst mix;
       in 
@@ -1054,7 +1054,7 @@ Definition Pr_def:
           step' = mrInst 3 step;
           ptb   = MAPi (λi r. dup (npair 0 (i+3)) r (npair 1 0)) base'.In; 
           btp   = dup base'.Out (npair 0 1) (npair 1 0) ;
-          pts0  = dup (npair 0 0) (EL 0 step'.In) (npair 1 0);
+          pts0  = dup (npair 0 0) (HD step'.In) (npair 1 0);
           pts1  = dup (npair 0 1) (EL 1 step'.In) (npair 1 0);
           pts   = MAPi (λi r. dup (npair 0 (i+3)) r (npair 1 0)) (DROP 2 step'.In);
           stp   = dup step'.Out (npair 0 1) (npair 1 0);
@@ -1754,22 +1754,6 @@ Proof
   metis_tac[msInst_correct]
 QED 
 
-(*
-
-Theorem Cn_correct: 
-  wfrm m1 ∧ wfrm m2 
-∧
-  DISJOINT m1.Q m2.Q 
-∧ 
-  rmcorr m1 m1.q0 P NONE Q 
-∧ 
-  rmcorr m2 m2.q0 Q NONE R
-
-⇒ rmcorr (link m1 m2) m1.q0 P NONE R
-Proof 
-QED 
-*)
-
 
 Definition lst_def:
   lst = <|
@@ -1987,11 +1971,11 @@ Definition Pair_def:
             tri' = mrInst 2 Tri;
             add2 = mrInst 3 simp_add;
 
-            dup00_1 = dup 0 (EL 0 add1.In) 2;
+            dup00_1 = dup 0 (HD add1.In) 2;
             dup01_1 = dup 5 (EL 1 add1.In) 2;
-            dup01_3 = dup 5 (EL 0 add2.In) 2;
+            dup01_3 = dup 5 (HD add2.In) 2;
             
-            dup1_2 = dup add1.Out (EL 0 tri'.In) 2;
+            dup1_2 = dup add1.Out (HD tri'.In) 2;
             
             dup2_3 = dup tri'.Out (EL 1 add2.In) 2;
 
@@ -2019,15 +2003,15 @@ Definition FST_def:
             add = mrInst 3 simp_add;
             sub = mrInst 4 simp_sub;
 
-            dup0_2 = dup 0 (EL 0 invtri'.In) 2;
+            dup0_2 = dup 0 (HD invtri'.In) 2;
             dup0_4 = dup 0 (EL 1 sub.In) 2;
             
-            dup2_3 = dup invtri'.Out (EL 0 add.In) 2;
-            dup2_1 = dup invtri'.Out (EL 0 tri'.In) 2;
+            dup2_3 = dup invtri'.Out (HD add.In) 2;
+            dup2_1 = dup invtri'.Out (HD tri'.In) 2;
             
             dup1_3 = dup tri'.Out (EL 1 add.In) 2;
 
-            dup3_4 = dup add.Out (EL 0 sub.In) 2;
+            dup3_4 = dup add.Out (HD sub.In) 2;
 
             mix = [dup0_2; dup0_4; invtri'; dup2_3; dup2_1; tri'; dup1_3; add; dup3_4; sub];
             mix' = MAPi msInst mix;
@@ -2044,10 +2028,10 @@ Definition SND_def:
             tri' = mrInst 2 Tri;
             sub = mrInst 3 simp_sub;
 
-            dup0_1 = dup 0 (EL 0 invtri'.In) 2;
-            dup0_3 = dup 0 (EL 0 sub.In) 2;
+            dup0_1 = dup 0 (HD invtri'.In) 2;
+            dup0_3 = dup 0 (HD sub.In) 2;
             
-            dup1_2 = dup invtri'.Out (EL 0 tri'.In) 2;
+            dup1_2 = dup invtri'.Out (HD tri'.In) 2;
             
             dup2_3 = dup tri'.Out (EL 1 sub.In) 2;
 
@@ -2059,14 +2043,22 @@ End
 
 
 (*
-Theorem Cn1_correct:
-  correct1 f1 m1 ∧ correct1 f2 m2 ⇒ ∀n. RUN (Cn m1 [m2]) [n] = (f1 o f2) n  
-Proof
-  rw[correct1_def, init_machine_def, run_machine_def, RUN_def, rsf_def] >>
-  rw[Cn_def] >>
-QED
-*)
 
+Theorem Cn_correct: 
+  wfrm g ∧ wfrm f ∧ LENGTH g.In = 1 ∧ LENGTH f.In = 1 
+∧
+  rmcorr g g.q0 (λrs. HD g.In = M) NONE (λrs. g.Out = N)
+∧ 
+  rmcorr f f.q0 (λrs. HD f.In = N) NONE (λrs. f.Out = Op)
+
+⇒ rmcorr (Cn f g) (Cn f g).q0 (λrs. 0 = M) NONE (λrs. (Cn f g).Out = Op) 
+Proof 
+  rw[] >>
+  `rmcorr g g.q0 (λrs. HD g.In = M) NONE (λrs. g.Out = N)`
+  irule rmcorr_trans >> 
+  map_every qexists_tac [`(λrs. HD m1.In = M)`, ``]
+QED 
+*)
 
 (* TODO 
 DONE 1. Prove invtri 
