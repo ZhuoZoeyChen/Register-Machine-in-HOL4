@@ -9,6 +9,7 @@ open listTheory;
 open mp_then;
 open boolTheory;
 open numpairTheory;
+open pred_setTheory;
 
 val _ = new_theory "registerMachine";
 
@@ -386,6 +387,208 @@ val link_all_def = Define`
   (link_all (m::ms) = FOLDL (λa mm. a ⇨ mm) m ms)
 `;
 
+(* 
+   -----------------------------------------
+   -----    Verification Techniques    -----
+   -----------------------------------------
+*)
+
+
+
+fun generate_machine_rwts thm = 
+  let val (mname,tm)= dest_eq (concl thm)
+      val qthm = SIMP_CONV (srw_ss()) [thm] (mk_comb(“rm_Q”, mname))
+      val states_t = rhs (concl qthm)
+      val states = pred_setSyntax.strip_set states_t
+      fun mktf k = SIMP_CONV (srw_ss()) [thm] (list_mk_comb(“rm_tf”, [mname,k]))
+      val tf_thms = map mktf states
+  in LIST_CONJ (qthm :: tf_thms)
+  end
+
+(* Helper functions *)
+Definition correct_def:
+  correct m f a ⇔ ∀l. LENGTH l = a ⇒ RUN m l = f l
+End
+
+(*
+Definition correct_def:
+  correct m f a = rmcorr m m.q0 () NONE 
+End
+*)
+
+Definition run_step_def:
+  run_step m rsq 0 = rsq ∧
+  run_step m rsq (SUC n) = run_step m (run_machine_1 m rsq) n 
+End
+
+Theorem run_one_step:
+  ∀m rsq n. run_machine_1 m (run_step m rsq n) = run_step m rsq (SUC n)
+Proof 
+  Induct_on `n` >> simp[run_step_def]
+QED
+
+Theorem combo_steps:
+ ∀m rs q1 n1 n2.  run_step m (run_step m (rs, SOME q1) n1) n2
+  = run_step m (rs, SOME q1) (n1+n2)
+Proof 
+  Induct_on `n2` 
+  >- simp[run_step_def]
+  >> rw[run_step_def, run_machine_def]
+  >> `n1 + SUC n2 = SUC n1 + n2` by fs[]
+  >> simp[]
+  >> `run_step m (run_step m (rs,SOME q1) (SUC n1)) n2 =
+       run_step m (rs,SOME q1) (SUC n1 + n2)` suffices_by rw[run_one_step]
+  >> metis_tac[]
+QED
+
+Definition rmcorr_def:
+  rmcorr M q P qf Q = 
+    ∀rs. P rs ⇒ ∃n rs'. (run_step M (rs, SOME q) n = (rs', qf)) ∧ Q rs' 
+End
+
+Definition rm_ends_def:
+  rm_ends m rs q = ∃n rs'. run_step m (rs, SOME q) n = (rs', NONE) 
+End 
+
+Theorem rmcorr_trans:
+  rmcorr m q1 P (SOME q2) Q ∧ rmcorr m q2 Q q3 R ⇒ rmcorr m q1 P q3 R
+Proof 
+  rw[rmcorr_def] >> 
+  last_x_assum (qspec_then `rs` assume_tac) >> rfs[] >>
+  last_x_assum (qspec_then `rs'` assume_tac) >> rfs[] >>
+  qexists_tac`n+n'` >>
+  qexists_tac`rs''` >>
+  `run_step m (rs,SOME q1) (n + n') =  run_step m (run_step m (rs,SOME q1) n) n' ` 
+    by simp[combo_steps] >>
+  `run_step m (run_step m (rs,SOME q1) n) n' = run_step m (rs', SOME q2) n' ` 
+    by simp[] >>
+  rw[]
+QED
+
+
+
+Theorem rmcorr_inc:
+  m.tf q0 = Inc r (SOME d)
+∧
+  q0 ∈ m.Q
+∧
+  rmcorr m d (λrs. P (rs (| r |-> rs r - 1 |)) ∧ 0 < rs r) q Q
+==> 
+  rmcorr m q0 P q Q
+Proof 
+  rw[rmcorr_def] >>
+  qabbrev_tac `rs' = rs⦇r ↦ rs r + 1⦈` >> 
+  `rs'⦇r ↦ rs' r - 1⦈ = rs` by rw[APPLY_UPDATE_THM, Abbr`rs'`, FUN_EQ_THM] >>
+  `P rs'⦇r ↦ rs' r - 1⦈` by fs[] >>
+  `0 < rs' r ` by rw[APPLY_UPDATE_THM, Abbr`rs'`] >>
+  first_x_assum drule_all >>
+  strip_tac >> 
+  map_every qexists_tac [`SUC n`, `rs''`] >>
+  rw[run_step_def, run_machine_1_def]
+QED 
+
+
+Theorem rmcorr_stay:
+(∀rs. P rs ⇒ Q rs) ⇒ rmcorr m q P (SOME q) Q
+Proof 
+  rw[rmcorr_def] >>
+  map_every qexists_tac [`0`, `rs`] >>
+  first_x_assum drule >>
+  strip_tac >>
+  rw[run_step_def]
+QED
+
+Theorem rmcorr_dec:
+  m.tf q0 = Dec r (SOME t) (SOME e)
+∧ 
+  q0 ∈ m.Q
+∧
+  rmcorr m t (λrs. P (rs (|r |-> rs r + 1|))) q Q
+∧
+  rmcorr m e (λrs. P rs ∧ rs r = 0) q Q
+==>
+  rmcorr m q0 P q Q
+Proof 
+  rw[rmcorr_def] >> 
+  Cases_on `0 < rs r` 
+  >- (qabbrev_tac`rs' = rs (| r |-> rs r - 1|)` >> 
+      `P rs' ⦇r ↦ rs' r + 1⦈ ` 
+          by simp[Abbr`rs'`, APPLY_UPDATE_THM, UPDATE_EQ, APPLY_UPDATE_ID]
+       >> last_x_assum drule >> strip_tac >> map_every qexists_tac [`SUC n`, `rs''`]
+       >> rw[run_step_def, run_machine_1_def])
+  >> `rs r = 0` by simp[] 
+  >> first_x_assum drule_all
+  >> strip_tac >> map_every qexists_tac [`SUC n`, `rs'`]
+  >> rw[run_step_def, run_machine_1_def]
+QED
+
+
+Theorem weak_rmcorr:
+  (∀s. P s ⇒ P' s) ∧ (∀s. Q' s ⇒ Q s) ∧ (rmcorr m q0 P' q Q') 
+==> rmcorr m q0 P q Q 
+Proof 
+  rw[rmcorr_def] >>
+  `P' rs` by fs[] >>
+  `∃n rs'. run_step m (rs,SOME q0) n = (rs',q) ∧ Q' rs'` by fs[] >>
+  `Q rs'` by fs[] >>
+  qexists_tac `n` >> 
+  qexists_tac `rs'` >>
+  rw[]
+QED
+
+
+Theorem loop_correct_0:
+∀ m q INV gd body exit.
+  (∀N. rmcorr m body (λrs. INV (rs(| gd |-> rs gd + 1|)) ∧ rs gd = N) (SOME q) (λrs'. INV rs' ∧ rs' gd <= N))
+∧ (m.tf(q) = Dec gd (SOME body) exit) ∧ q ∈ m.Q
+
+==> rmcorr m q INV exit (λrs. INV rs ∧ rs gd = 0)
+Proof   
+  rw[rmcorr_def] >>
+  completeInduct_on `rs gd` >>
+  rw[] >>
+  fs[PULL_FORALL] >>
+  Cases_on`0<rs gd` 
+  >- (qabbrev_tac `rsx = rs⦇gd ↦ rs gd - 1⦈` >> 
+     `run_machine_1 m (rs, SOME q) = (rsx, SOME body)` by simp[run_machine_1_def] >>
+      first_x_assum (qspec_then `rsx` mp_tac) >>
+      impl_tac 
+      >- rw[Abbr `rsx`, APPLY_UPDATE_THM, APPLY_UPDATE_ID, UPDATE_EQ] 
+      >> strip_tac >>
+      `rs' gd < rs gd` by fs[Abbr`rsx`, APPLY_UPDATE_THM] >>
+      first_x_assum drule_all >> rw[] >>
+      map_every qexists_tac [`SUC (n + n')`, `rs''`] >>
+      simp[run_step_def, GSYM combo_steps]
+    )
+  >> map_every qexists_tac [`SUC 0`, `rs`]
+  >> rw[run_step_def]
+  >> rw[run_machine_1_def]
+QED
+
+
+Theorem loop_correct:
+∀ m q INV P Q gd body exit.
+  (∀N. rmcorr m body (λrs. INV (rs(| gd |-> rs gd + 1|)) ∧ rs gd = N) (SOME q) (λrs'. INV rs' ∧ rs' gd <= N))
+∧ (∀rs. P rs ⇒ INV rs) 
+∧ (∀rs. INV rs ∧ rs gd = 0 ⇒ Q rs)
+∧ (m.tf(q) = Dec gd (SOME body) exit)
+∧ q ∈ m.Q
+
+==> rmcorr m q P exit Q
+Proof   
+  rw[] >>
+  `rmcorr m q INV exit (λrs. INV rs ∧ rs gd = 0)` by rw[loop_correct_0] >>
+  fs[rmcorr_def] >>
+  rw[rmcorr_def] >>
+  `INV rs` by fs[] >>
+  `∃n rs'. run_step m (rs,SOME q) n = (rs',exit) ∧ INV rs' ∧ rs' gd = 0` by fs[] >>
+  qexists_tac`n` >>
+  qexists_tac`rs'` >>
+  `Q rs'` by fs[] >>
+  rw[]
+QED
+
+
 
 (* 
    -------------------------------------------------------------   
@@ -422,17 +625,38 @@ Definition simp_sub_def:
   |>
 End
 
+
+Theorem simp_add_facts[simp] = generate_machine_rwts simp_add_def
+
+Theorem simp_add_correct_rmcorr:
+∀RS. 
+  rmcorr simp_add 1 (λrs. rs = RS) NONE (λrs. ∀k. k ∉ {1;2} ⇒ rs k = RS k ∧ rs 2 = 0 ∧ rs 1 = RS 1 + RS 2)
+Proof 
+  rw[] >>
+  irule loop_correct >> simp[] >>
+  qexists_tac `λrs.  ∀k. k ∉ {1;2} ⇒ rs k = RS k ∧ rs 2 + rs 1 = RS 1 + RS 2` >>
+  rw[] 
+  >- (first_x_assum drule_all >> rw[])
+  >> rw[APPLY_UPDATE_THM]
+  >> irule rmcorr_inc >> simp[]
+  >> rw[APPLY_UPDATE_THM]
+  >> irule rmcorr_stay >> simp[]
+  >> rw[]
+  >> first_x_assum drule_all
+  >> rw[]
+QED 
+
 Theorem simp_add_correct:
   correct2 (+) simp_add
 Proof
   rw[simp_add_def, correct2_def, init_machine_def, run_machine_def, RUN_def] >>
   qmatch_abbrev_tac `FST (WHILE gd (r m) init) 1 = a + b` >>
   `∀rs0. FST (WHILE gd (r m) (rs0, SOME 1)) 1 = rs0 1 + rs0 2`
-    suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
+    suffices_by rw[Abbr`init`, findi_def] >>
   gen_tac >> 
   rw[Abbr`r`, Abbr`m`, Abbr`gd`] >> 
   Induct_on `rs0 2` >>
-  rw[Ntimes whileTheory.WHILE 2, run_machine_1_def, combinTheory.APPLY_UPDATE_THM] 
+  rw[Ntimes WHILE 2, run_machine_1_def, APPLY_UPDATE_THM] 
 QED
 
 
@@ -452,6 +676,41 @@ val addition_def = Define `
   |>
 `;
 
+Theorem addition_facts[simp] = generate_machine_rwts addition_def
+
+Theorem addition_correct_rmcorr:
+∀RS. RS 3 = 0 ⇒ 
+  rmcorr addition 1 (λrs. rs = RS) NONE (λrs. rs 1 = RS 1 + RS 2 ∧ ∀k. k ≠ 1 ⇒ rs k = RS k)
+Proof 
+  rw[] >>
+  irule rmcorr_trans >> simp[] >> 
+  map_every qexists_tac [`λrs. ∀k. k ∉ {1;2;3} ⇒ rs k = RS k ∧ rs 1 = RS 1 + RS 2 ∧ rs 3 = RS 2 ∧ rs 2 = 0`,`4`] >> 
+  rw[]
+  >- (irule loop_correct >> simp[] >> 
+      qexists_tac `λrs. ∀k. k ∉ {1;2;3} ⇒ rs k = RS k ∧ rs 1 + rs 2 = RS 1 + RS 2 ∧ rs 3 + rs 2 = RS 2` >>
+      rw[] 
+      >- (first_x_assum drule_all >> rw[])
+      >- (first_x_assum drule_all >> rw[])
+      >> irule rmcorr_inc >> simp[] 
+      >> rw[APPLY_UPDATE_THM]
+      >> irule rmcorr_inc >> simp[]
+      >> rw[APPLY_UPDATE_THM]
+      >> irule rmcorr_stay >> simp[]
+      >> rw[APPLY_UPDATE_THM]
+      >> first_x_assum drule_all >> rw[]
+    )
+  >> irule loop_correct >> simp[]
+  >> qexists_tac `λrs. rs 1 = RS 1 + RS 2 ∧ rs 3 + rs 2 = RS 2 ∧ ∀k. k ∉ {1;2;3} ⇒ rs k = RS k` 
+  >> rw[APPLY_UPDATE_THM]
+  >- (fs[] >> Cases_on `k = 2`
+      >- rw[]
+      >> Cases_on `k = 3`
+      >> rw[])
+  >> irule rmcorr_inc >> simp[]
+  >> irule rmcorr_stay >> simp[]
+  >> rw[APPLY_UPDATE_THM]
+QED
+
 
 Theorem addition_correct:
   correct2 (+) addition 
@@ -459,17 +718,17 @@ Proof
   rw[addition_def, correct2_def, init_machine_def, run_machine_def, RUN_def] >>
   qmatch_abbrev_tac `FST (WHILE gd (r m) init) 1 = a + b` >>
   `∀rs0. FST (WHILE gd (r m) (rs0, SOME 1)) 1 = rs0 1 + rs0 2`
-    suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >>
+    suffices_by rw[Abbr`init`, findi_def] >>
   gen_tac >>
   Induct_on `rs0 2` 
     >- (`∀rs0. FST (WHILE gd (r m) (rs0, SOME 4)) 1 = rs0 1` 
-          suffices_by (rw[] >> rw[Once whileTheory.WHILE, Abbr`r`, Abbr`m`, run_machine_1_def]) 
+          suffices_by (rw[] >> rw[Once WHILE, Abbr`r`, Abbr`m`, run_machine_1_def]) 
         >> gen_tac
         >> Induct_on `rs0 3`
         >> rw[Abbr`gd`, Abbr`r`, Abbr`m`]
-        >> rw[Ntimes whileTheory.WHILE 2, run_machine_1_def, combinTheory.APPLY_UPDATE_THM])
+        >> rw[Ntimes WHILE 2, run_machine_1_def, APPLY_UPDATE_THM])
     >> rw[Abbr`r`, Abbr`m`, Abbr`gd`] 
-    >> rw[Ntimes whileTheory.WHILE 3, run_machine_1_def, combinTheory.APPLY_UPDATE_THM] 
+    >> rw[Ntimes WHILE 3, run_machine_1_def, APPLY_UPDATE_THM] 
 QED
 
      
@@ -491,6 +750,50 @@ val multiplication_def = Define `
 `;
 
 
+Theorem multi_facts[simp] = generate_machine_rwts multi_def
+
+
+Theorem multiplication_correct_rmcorr:
+∀RS. (RS 2 = 0 ∧ RS 3 = 0) ⇒ 
+  rmcorr multiplication 1 (λrs. rs = RS) NONE (λrs. rs 2 = RS 0 * RS 1 ∧ rs 0 = 0 ∧ ∀k. k ∉ {0;2} ⇒ rs k = RS k)
+Proof 
+  rw[] >> 
+  irule loop_correct >> simp[] >>
+  qexists_tac `λrs. rs 0 * rs 1 + rs 2 = RS 0 * RS 1 ∧ ∀k. k ∉ {0;2} ⇒ rs k = RS k` >>
+  rw[]
+  >- fs[]
+  >> irule rmcorr_trans >> simp[APPLY_UPDATE_THM]
+  >> map_every qexists_tac [`λrs. rs 0 = N ∧ rs 0 * rs 3 + rs 2 = RS 0 * RS 1 ∧ rs 1 = 0 ∧ rs 3 = RS 1 ∧ ∀k. k ∉ {0;1;2;3} ⇒ rs k = RS k`,`5`]
+  >> rw[]
+  >- (irule loop_correct >> simp[] >> 
+      qexists_tac `λrs. rs 0 = N ∧ rs 1 + rs 3 = RS 1 ∧ rs 0 * RS 1 + rs 2 + rs 1 = RS 0 * RS 1 ∧ ∀k. k ∉ {0;1;2;3} ⇒ rs k = RS k `
+      >> rw[] >> fs[]
+      >> irule rmcorr_inc >> simp[] 
+      >> irule rmcorr_inc >> simp[] 
+      >> irule rmcorr_stay >> simp[]
+      >> rw[APPLY_UPDATE_THM]
+      >> fs[])
+  >> irule rmcorr_trans >> simp[]
+  >> map_every qexists_tac [`λrs. rs 0 = N ∧ rs 0 * RS 1 + rs 2 = RS 0 * RS 1 ∧ ∀k. k ∉ {0;2} ⇒ rs k = RS k`, `1`] 
+  >> rw[]
+  >- (irule loop_correct >> simp[]
+      >> qexists_tac `λrs. rs 0 = N ∧ rs 1 + rs 3 = RS 1 ∧ rs 0 * RS 1 + rs 2 = RS 0 * RS 1 ∧ ∀k. k ∉ {0;1;2;3} ⇒ rs k = RS k`
+      >> rw[]
+      >- fs[]
+      >- (Cases_on `k = 1` 
+          >> fs[]
+          >> Cases_on `k = 3`
+          >> fs[])
+      >> irule rmcorr_inc >> simp[]
+      >> irule rmcorr_stay >> simp[]
+      >> rw[APPLY_UPDATE_THM]
+      )
+  >> irule rmcorr_stay >> simp[]
+  >> rw[APPLY_UPDATE_THM] 
+  >> fs[]
+QED
+
+
 Theorem mult_loop1:
   WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) (rs, SOME 2) 
   = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) 
@@ -500,20 +803,20 @@ Theorem mult_loop1:
      , SOME 5) 
 Proof
   Induct_on `rs 1` >> rw[] 
-    >- (rw[Once whileTheory.WHILE, run_machine_1_def, multiplication_def] >>
-          `rs 1 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
+    >- (rw[Once WHILE, run_machine_1_def, multiplication_def] >>
+          `rs 1 = 0` by simp[] >> fs[] >> rw[APPLY_UPDATE_THM] >>
           qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
           `rs1 = rs2` suffices_by simp[] >> 
-          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
+          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, APPLY_UPDATE_THM] >>
           rw[] >> rw[])
     >> qmatch_abbrev_tac`_ = goal` >>
-      rw[Ntimes whileTheory.WHILE 3, run_machine_1_def, multiplication_def] >>
-      rw[combinTheory.APPLY_UPDATE_THM] >>
+      rw[Ntimes WHILE 3, run_machine_1_def, multiplication_def] >>
+      rw[APPLY_UPDATE_THM] >>
       `rs 1 = SUC v` by simp[] >> fs[] >> 
-      fs[multiplication_def, combinTheory.APPLY_UPDATE_THM] >> 
+      fs[multiplication_def, APPLY_UPDATE_THM] >> 
       rw[Abbr`goal`] >> qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
       `rs1 = rs2` suffices_by simp[] >>
-      simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
+      simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, APPLY_UPDATE_THM]
 QED
 
 Theorem mult_loop2:
@@ -524,31 +827,23 @@ Theorem mult_loop2:
      , SOME 1) 
 Proof
   Induct_on `rs 3` >> rw[] 
-    >- (rw[Once whileTheory.WHILE, run_machine_1_def, multiplication_def] >>
-          `rs 3 = 0` by simp[] >> fs[] >> rw[combinTheory.APPLY_UPDATE_THM] >>
+    >- (rw[Once WHILE, run_machine_1_def, multiplication_def] >>
+          `rs 3 = 0` by simp[] >> fs[] >> rw[APPLY_UPDATE_THM] >>
           qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
           `rs1 = rs2` suffices_by simp[] >> 
-          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM] >>
+          simp[Abbr `rs1`, Abbr`rs2`, FUN_EQ_THM, APPLY_UPDATE_THM] >>
           rw[] >> rw[])
-    >> rw[SimpLHS, Ntimes whileTheory.WHILE 2, run_machine_1_def, multiplication_def] >>
-      rw[combinTheory.APPLY_UPDATE_THM] >>
+    >> rw[SimpLHS, Ntimes WHILE 2, run_machine_1_def, multiplication_def] >>
+      rw[APPLY_UPDATE_THM] >>
       `rs 3 = SUC v` by simp[] >> fs[] >> 
-      fs[multiplication_def, combinTheory.APPLY_UPDATE_THM] >> 
+      fs[multiplication_def, APPLY_UPDATE_THM] >> 
       qmatch_abbrev_tac`WHILE _ _ (rs1, _) = WHILE _ _ (rs2, _)` >>
       `rs1 = rs2` suffices_by simp[] >>
       simp[Abbr `rs1`, Abbr`rs2`] >>
-      simp[FUN_EQ_THM, combinTheory.APPLY_UPDATE_THM]
+      simp[FUN_EQ_THM, APPLY_UPDATE_THM]
 QED
 
-Theorem mult_facts[simp]:
-  (multiplication.In = [0; 1]) ∧
-  (multiplication.Out = 2) ∧
-  (multiplication.q0 = 1) ∧
-  (multiplication.Q = {1;2;3;4;5;6}) ∧
-  (multiplication.tf 1 = Dec 0 (SOME 2) NONE)
-Proof
-  simp[multiplication_def]
-QED
+
         
 
 Theorem multi_correct:
@@ -557,18 +852,19 @@ Proof
   rw[correct2_def, init_machine_def, run_machine_def, RUN_def] >>
   qmatch_abbrev_tac `FST (WHILE gd (r m) init) 2 = a * b` >>
   `∀rs0. (rs0 3 = 0) ⇒ (FST (WHILE gd (r m) (rs0, SOME 1)) 2 = rs0 0 * rs0 1 + rs0 2)` 
-    suffices_by rw[Abbr`init`, indexedListsTheory.findi_def] >> rw[] >>
+    suffices_by rw[Abbr`init`, findi_def] >> rw[] >>
   Induct_on `rs0 0` >> rw[]
-    >- (rw[multiplication_def, Ntimes whileTheory.WHILE 2, Abbr`gd`, Abbr`r`, Abbr`m`, run_machine_1_def] >>
+    >- (rw[multiplication_def, Ntimes WHILE 2, Abbr`gd`, Abbr`r`, Abbr`m`, run_machine_1_def] >>
         `rs0 0 = 0` by simp[] >> fs[])
-    >> rw[Once whileTheory.WHILE, run_machine_1_def, Abbr`gd`, Abbr`r`, Abbr`m`, mult_loop1]
+    >> rw[Once WHILE, run_machine_1_def, Abbr`gd`, Abbr`r`, Abbr`m`, mult_loop1]
     >> rw[mult_loop2]
-    >> rw[combinTheory.APPLY_UPDATE_THM] >> `rs0 0 = SUC v` by simp[] >> fs[]
+    >> rw[APPLY_UPDATE_THM] >> `rs0 0 = SUC v` by simp[] >> fs[]
     >> fs[arithmeticTheory.ADD1]
 QED
 
 
 (* swapping r1 and r2 for multiplication part can make the machine faster *)
+(* r1 ** r0 *)
 Definition exponential_def:
   exponential  = <|
     Q := {1;2;3;4;5;6;7;8;9;10;11;12;13;14};
@@ -594,19 +890,31 @@ Definition exponential_def:
   |>
 End
 
+Theorem exp_facts[simp] = generate_machine_rwts exp_def
 
-Theorem exp_facts[simp]:
-  (exponential.In = [1; 0]) ∧
-  (exponential.Out = 2) ∧
-  (exponential.q0 = 14) ∧
-  (exponential.Q = {1;2;3;4;5;6;7;8;9;10;11;12;13;14}) ∧
-  (exponential.tf 1 = Dec 0 (SOME 2) NONE) ∧
-  (exponential.tf 2 = Dec 1 (SOME 3) (SOME 9)) ∧
-  (exponential.tf 3 = Inc 5 (SOME 4)) ∧
-  (exponential.tf 14 = Inc 2 (SOME 1))
-Proof
-  simp[exponential_def]
+(*
+Theorem exponential_correct_rmcorr:
+∀RS. (RS 2 = 0 ∧ RS 3 = 0 ∧ RS 4 = 0 ∧ RS 5 = 0) ⇒ 
+  rmcorr exponential 14 (λrs. rs = RS) NONE (λrs. rs 2 = RS 1 ** RS 0 ∧ rs 0 = 0 ∧ ∀k. k ∉ {0;2} ⇒ rs k = RS k)
+Proof 
+  rw[] >>
+  irule rmcorr_inc >> simp[] >>
+  irule loop_correct >> simp[] >>
+  qexists_tac `λrs. rs 2 * (rs 1 ** rs 0) = RS 1 ** RS 0 ∧ ∀k. k ∉ {0;2} ⇒ rs k = RS k` >>
+  rw[APPLY_UPDATE_THM]
+  >- (`rs 2 = 1` by fs[UPDATE_APPLY] >> rw[APPLY_UPDATE_THM])
+  >- rw[APPLY_UPDATE_THM]
+  >- fs[]
+  >> irule rmcorr_trans >> simp[]
+  >> map_every qexists_tac [`λrs. rs 1 = 0 ∧ rs 2 * (rs 5 ** rs 0) = RS 1 ** RS 0 ∧ rs 3 = rs 2 * rs 1 ∧ ∀k. k ∉ {0;1;2;3;5} ⇒ rs k = RS k`,`9`]
+  >> rw[]
+  >- (irule loop_correct >> simp[] >>
+      qexists_tac `λrs. `)
+  >> 
+
 QED
+*)
+
 
 Theorem exp_loop1_1:
   WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) (rs, SOME 4) 
@@ -1118,123 +1426,6 @@ End
    - Minimisation
 *)
 
-(* Helper functions *)
-Definition correct_def:
-  correct m f a ⇔ ∀l. LENGTH l = a ⇒ RUN m l = f l
-End
-
-(*
-Definition correct_def:
-  correct m f a = rmcorr m m.q0 () NONE 
-End
-*)
-
-Definition run_step_def:
-  run_step m rsq 0 = rsq ∧
-  run_step m rsq (SUC n) = run_step m (run_machine_1 m rsq) n 
-End
-
-Theorem run_one_step:
-  ∀m rsq n. run_machine_1 m (run_step m rsq n) = run_step m rsq (SUC n)
-Proof 
-  Induct_on `n` >> simp[run_step_def]
-QED
-
-Theorem combo_steps:
- ∀m rs q1 n1 n2.  run_step m (run_step m (rs, SOME q1) n1) n2
-  = run_step m (rs, SOME q1) (n1+n2)
-Proof 
-  Induct_on `n2` 
-  >- simp[run_step_def]
-  >> rw[run_step_def, run_machine_def]
-  >> `n1 + SUC n2 = SUC n1 + n2` by fs[]
-  >> simp[]
-  >> `run_step m (run_step m (rs,SOME q1) (SUC n1)) n2 =
-       run_step m (rs,SOME q1) (SUC n1 + n2)` suffices_by rw[run_one_step]
-  >> metis_tac[]
-QED
-
-Definition rmcorr_def:
-  rmcorr M q P qf Q = 
-    ∀rs. P rs ⇒ ∃n rs'. (run_step M (rs, SOME q) n = (rs', qf)) ∧ Q rs' 
-End
-
-Definition rm_ends_def:
-  rm_ends m rs q = ∃n rs'. run_step m (rs, SOME q) n = (rs', NONE) 
-End 
-
-Theorem rmcorr_trans:
-  rmcorr m q1 P (SOME q2) Q ∧ rmcorr m q2 Q q3 R ⇒ rmcorr m q1 P q3 R
-Proof 
-  rw[rmcorr_def] >> 
-  last_x_assum (qspec_then `rs` assume_tac) >> rfs[] >>
-  last_x_assum (qspec_then `rs'` assume_tac) >> rfs[] >>
-  qexists_tac`n+n'` >>
-  qexists_tac`rs''` >>
-  `run_step m (rs,SOME q1) (n + n') =  run_step m (run_step m (rs,SOME q1) n) n' ` 
-    by simp[combo_steps] >>
-  `run_step m (run_step m (rs,SOME q1) n) n' = run_step m (rs', SOME q2) n' ` 
-    by simp[] >>
-  rw[]
-QED
-
-
-
-Theorem rmcorr_inc:
-  m.tf q0 = Inc r (SOME d)
-∧
-  q0 ∈ m.Q
-∧
-  rmcorr m d (λrs. P (rs (| r |-> rs r - 1 |)) ∧ 0 < rs r) q Q
-==> 
-  rmcorr m q0 P q Q
-Proof 
-  rw[rmcorr_def] >>
-  qabbrev_tac `rs' = rs⦇r ↦ rs r + 1⦈` >> 
-  `rs'⦇r ↦ rs' r - 1⦈ = rs` by rw[APPLY_UPDATE_THM, Abbr`rs'`, FUN_EQ_THM] >>
-  `P rs'⦇r ↦ rs' r - 1⦈` by fs[] >>
-  `0 < rs' r ` by rw[APPLY_UPDATE_THM, Abbr`rs'`] >>
-  first_x_assum drule_all >>
-  strip_tac >> 
-  map_every qexists_tac [`SUC n`, `rs''`] >>
-  rw[run_step_def, run_machine_1_def]
-QED 
-
-
-Theorem rmcorr_stay:
-(∀rs. P rs ⇒ Q rs) ⇒ rmcorr m q P (SOME q) Q
-Proof 
-  rw[rmcorr_def] >>
-  map_every qexists_tac [`0`, `rs`] >>
-  first_x_assum drule >>
-  strip_tac >>
-  rw[run_step_def]
-QED
-
-Theorem rmcorr_dec:
-  m.tf q0 = Dec r (SOME t) (SOME e)
-∧ 
-  q0 ∈ m.Q
-∧
-  rmcorr m t (λrs. P (rs (|r |-> rs r + 1|))) q Q
-∧
-  rmcorr m e (λrs. P rs ∧ rs r = 0) q Q
-==>
-  rmcorr m q0 P q Q
-Proof 
-  rw[rmcorr_def] >> 
-  Cases_on `0 < rs r` 
-  >- (qabbrev_tac`rs' = rs (| r |-> rs r - 1|)` >> 
-      `P rs' ⦇r ↦ rs' r + 1⦈ ` 
-          by simp[Abbr`rs'`, APPLY_UPDATE_THM, UPDATE_EQ, APPLY_UPDATE_ID]
-       >> last_x_assum drule >> strip_tac >> map_every qexists_tac [`SUC n`, `rs''`]
-       >> rw[run_step_def, run_machine_1_def])
-  >> `rs r = 0` by simp[] 
-  >> first_x_assum drule_all
-  >> strip_tac >> map_every qexists_tac [`SUC n`, `rs'`]
-  >> rw[run_step_def, run_machine_1_def]
-QED
-
 
 (* 0 *)
 Theorem const0rm[simp] = EVAL``const 0``;
@@ -1305,72 +1496,6 @@ Proof
   rw[Once WHILE, run_machine_1_def] >> 
   rw[Once WHILE, run_machine_1_def] 
   >> rw[Once WHILE, run_machine_1_def] >> rw[APPLY_UPDATE_THM] 
-QED
-
-Theorem weak_rmcorr:
-  (∀s. P s ⇒ P' s) ∧ (∀s. Q' s ⇒ Q s) ∧ (rmcorr m q0 P' q Q') 
-==> rmcorr m q0 P q Q 
-Proof 
-  rw[rmcorr_def] >>
-  `P' rs` by fs[] >>
-  `∃n rs'. run_step m (rs,SOME q0) n = (rs',q) ∧ Q' rs'` by fs[] >>
-  `Q rs'` by fs[] >>
-  qexists_tac `n` >> 
-  qexists_tac `rs'` >>
-  rw[]
-QED
-
-
-Theorem loop_correct_0:
-∀ m q INV gd body exit.
-  (∀N. rmcorr m body (λrs. INV (rs(| gd |-> rs gd + 1|)) ∧ rs gd = N) (SOME q) (λrs'. INV rs' ∧ rs' gd <= N))
-∧ (m.tf(q) = Dec gd (SOME body) exit) ∧ q ∈ m.Q
-
-==> rmcorr m q INV exit (λrs. INV rs ∧ rs gd = 0)
-Proof   
-  rw[rmcorr_def] >>
-  completeInduct_on `rs gd` >>
-  rw[] >>
-  fs[PULL_FORALL] >>
-  Cases_on`0<rs gd` 
-  >- (qabbrev_tac `rsx = rs⦇gd ↦ rs gd - 1⦈` >> 
-     `run_machine_1 m (rs, SOME q) = (rsx, SOME body)` by simp[run_machine_1_def] >>
-      first_x_assum (qspec_then `rsx` mp_tac) >>
-      impl_tac 
-      >- rw[Abbr `rsx`, APPLY_UPDATE_THM, APPLY_UPDATE_ID, UPDATE_EQ] 
-      >> strip_tac >>
-      `rs' gd < rs gd` by fs[Abbr`rsx`, APPLY_UPDATE_THM] >>
-      first_x_assum drule_all >> rw[] >>
-      map_every qexists_tac [`SUC (n + n')`, `rs''`] >>
-      simp[run_step_def, GSYM combo_steps]
-    )
-  >> map_every qexists_tac [`SUC 0`, `rs`]
-  >> rw[run_step_def]
-  >> rw[run_machine_1_def]
-QED
-
-
-
-Theorem loop_correct:
-∀ m q INV P Q gd body exit.
-  (∀N. rmcorr m body (λrs. INV (rs(| gd |-> rs gd + 1|)) ∧ rs gd = N) (SOME q) (λrs'. INV rs' ∧ rs' gd <= N))
-∧ (∀rs. P rs ⇒ INV rs) 
-∧ (∀rs. INV rs ∧ rs gd = 0 ⇒ Q rs)
-∧ (m.tf(q) = Dec gd (SOME body) exit)
-∧ q ∈ m.Q
-
-==> rmcorr m q P exit Q
-Proof   
-  rw[] >>
-  `rmcorr m q INV exit (λrs. INV rs ∧ rs gd = 0)` by rw[loop_correct_0] >>
-  fs[rmcorr_def] >>
-  rw[rmcorr_def] >>
-  `INV rs` by fs[] >>
-  `∃n rs'. run_step m (rs,SOME q) n = (rs',exit) ∧ INV rs' ∧ rs' gd = 0` by fs[] >>
-  qexists_tac`n` >>
-  qexists_tac`rs'` >>
-  `Q rs'` by fs[] >>
-  rw[]
 QED
 
 
@@ -1738,6 +1863,7 @@ QED
 
 
 Theorem msInst_correct: 
+∀mnum M q P opt Q.
   (wfrm M ∧ q ∈ M.Q) ⇒ 
   (rmcorr M q P opt Q ⇒ rmcorr (msInst mnum M) (npair mnum q) P (npair_opt mnum opt) Q) 
 Proof 
@@ -1831,15 +1957,6 @@ End
 
 val tri = EVAL ``RUN Tri [10]``;
 
-fun generate_machine_rwts thm = 
-  let val (mname,tm)= dest_eq (concl thm)
-      val qthm = SIMP_CONV (srw_ss()) [thm] (mk_comb(“rm_Q”, mname))
-      val states_t = rhs (concl qthm)
-      val states = pred_setSyntax.strip_set states_t
-      fun mktf k = SIMP_CONV (srw_ss()) [thm] (list_mk_comb(“rm_tf”, [mname,k]))
-      val tf_thms = map mktf states
-  in LIST_CONJ (qthm :: tf_thms)
-  end
 
 Theorem Tri_facts[simp] = generate_machine_rwts Tri_def
 
@@ -2042,24 +2159,95 @@ Definition SND_def:
 End
 
 
-(*
+Theorem rInst_states[simp]:
+  action_states (rInst mnum act) = action_states act
+Proof 
+  Cases_on `act` >>
+  rw[rInst_def, action_states_def]
+QED 
+
+Theorem mrInst_wfrm[simp]:
+∀mnum f.  wfrm (mrInst mnum f) ⇔  wfrm f
+Proof 
+  rw[wfrm_def, mrInst_def]
+QED
+
+Theorem opt_to_set_OPTION_MAP[simp]:
+   opt_to_set (OPTION_MAP f stop) = {f x| x ∈ opt_to_set stop}
+Proof 
+  Cases_on `stop` >> 
+  rw[EXTENSION, OPTION_MAP_DEF, opt_to_set_def] 
+QED 
+
+Theorem sInst_states[simp]:
+  action_states (sInst mnum act) = {npair mnum x | x ∈ action_states act}
+Proof 
+  Cases_on `act` >> 
+  rw[sInst_def, action_states_def, EXTENSION] >>
+  metis_tac[]
+QED 
+
+Theorem msInst_wfrm[simp]:
+∀mnum f.  wfrm (msInst mnum f) ⇔  wfrm f
+Proof 
+  rw[wfrm_def, msInst_def, PULL_EXISTS] >>
+  rw[pred_setTheory.SUBSET_DEF] >>
+  rw[PULL_EXISTS] 
+QED
+
+Theorem mrInst_Q[simp]:
+  (mrInst mnum f).Q = f.Q ∧ (mrInst mnum f).q0 = f.q0
+Proof 
+  rw[mrInst_def]
+QED 
+
+Theorem msInst_Q[simp]:
+  (msInst mnum f).Q = {npair mnum x | x ∈ f.Q} ∧ (msInst mnum f).q0 = npair mnum f.q0
+Proof 
+  rw[msInst_def, EXTENSION]
+QED
+
+Theorem link_facts[simp]:
+  (link m1 m2).q0 = m1.q0 ∧
+  (link m1 m2).Out = m2.Out
+Proof 
+  rw[link_def]
+QED 
+
 
 Theorem Cn_correct: 
   wfrm g ∧ wfrm f ∧ LENGTH g.In = 1 ∧ LENGTH f.In = 1 
 ∧
-  rmcorr g g.q0 (λrs. HD g.In = M) NONE (λrs. g.Out = N)
+  rmcorr g g.q0 (λrs. rs (HD g.In) = M) NONE (λrs. rs g.Out = N)
 ∧ 
-  rmcorr f f.q0 (λrs. HD f.In = N) NONE (λrs. f.Out = Op)
+  rmcorr f f.q0 (λrs. rs (HD f.In) = N) NONE (λrs. rs f.Out = Op)
 
-⇒ rmcorr (Cn f g) (Cn f g).q0 (λrs. 0 = M) NONE (λrs. (Cn f g).Out = Op) 
+⇒ rmcorr (Cn f g) (Cn f g).q0 (λrs. rs 0 = M) NONE (λrs. rs (Cn f g).Out = Op) 
 Proof 
-  rw[] >>
-  `rmcorr g g.q0 (λrs. HD g.In = M) NONE (λrs. g.Out = N)`
-  irule rmcorr_trans >> 
-  map_every qexists_tac [`(λrs. HD m1.In = M)`, ``]
-QED 
-*)
+  rw[Cn_def, link_all_def] >>
+  irule rmcorr_trans >> simp[] >>
+  map_every qexists_tac [`(λrs. rs (HD (mrInst 2 g).In) = M)`,`(msInst 1 (mrInst 2 g)).q0`] >>
+  rw[]
+  >- (rw[link_def] )
+  >>
 
+
+  `rmcorr (mrInst 1 f) f.q0 (liftP 1 (λrs. rs (HD f.In) = N)) NONE (liftP 1 (λrs. rs f.Out = Op))` 
+         by fs[npair_opt_def, liftP_def, mrInst_correct, wfrm_def] >>
+  `rmcorr (mrInst 2 g) g.q0 (liftP 2 (λrs. rs (HD g.In) = M)) NONE (liftP 2 (λrs. rs g.Out = N))` 
+         by fs[npair_opt_def, liftP_def, mrInst_correct, wfrm_def] >> 
+  `rmcorr (msInst 1 (mrInst 1 f)) (1 ⊗ (mrInst 1 f).q0) 
+        (liftP 1 (λrs. rs (HD f.In) = N)) (npair_opt 1 NONE) (liftP 1 (λrs. rs f.Out = Op))` 
+         by (irule msInst_correct >> rw[] >> fs[])
+         fs[npair_opt_def, msInst_correct, liftP_def, mrInst_correct, wfrm_def, mrInst_wfrm] >>
+  `rmcorr (msInst 2 (mrInst 2 g)) (2 ⊗ (mrInst 2 g).q0) (liftP 2 (λrs. HD (mrInst 2 g).In = M)) (npair_opt 2 NONE) (liftP (λrs. (mrInst 2 g).Out = N))` 
+         by fs[npair_opt_def, msInst_correct] >> 
+
+  `rmcorr (msInst 1 f) (npair 1 f.q0) (λrs. HD f.In = N) NONE (λrs. f.Out = Op)` 
+      by metis_tac[]
+  irule rmcorr_trans >> 
+  map_every qexists_tac [`(λrs. HD g.In = M)`, ``]
+QED 
 (* TODO 
 DONE 1. Prove invtri 
 2. prove composition
