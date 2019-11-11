@@ -18,6 +18,7 @@ fun teval n t =
     with_flag (computeLib.stoppers, SOME stop) (computeLib.WEAK_CBV_CONV computeLib.the_compset) t
   end;
 
+(*
 
 (* strip_state *)
 Theorem st = EVAL ``strip_state (Inc 5 (SOME 4))``
@@ -148,7 +149,7 @@ Theorem lpg = EVAL``loopguard (npair 0 2) ``;
 Theorem add1' = EVAL``RUN (add1 with In:=[3;0;1]) [1;100;5]``;
 Theorem machine =EVAL ``Pr identity (add1 with In:=[3;0;1])``;
 Theorem machine =EVAL ``RUN ((Pr identity (add1 with In:=[3;0;1])) with In:=[10000000;5;9]) [1;2;3]``;
-Theorem cnm = EVAL ``RUN (Cn (Pr identity (add1 with In:=[3;0;1])) [Pi 1 3; Pi 2 3]) [1;2;3]``;
+(*Theorem cnm = EVAL ``RUN (Cn (Pr identity (add1 with In:=[3;0;1])) [Pi 1 3; Pi 2 3]) [1;2;3]``;*)
 (*Theorem pr_add1_E = EVAL``RUN (Pr () (Pr identity add1)) [10;3]``;
 Theorem pr_mult = EVAL ``RUN (Pr (const 0) (Pr identity add1))``;
 Theorem pr0 = EVAL ``RUN (Pr (const 1) (multiplication with In:=[1;0;10])) [3;1]``;
@@ -206,7 +207,7 @@ Theorem Pair5_5 = EVAL ``RUN Pair [5;5]``;
 Theorem npair7_88 = EVAL ``npair 7 88``;
 Theorem Pair7_88 = EVAL ``RUN Pair [7;88]``;
 
-
+*)
 
 
 val _ = export_theory()
