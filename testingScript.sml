@@ -8,8 +8,10 @@ open registerMachineTheory;
 
 val _ = new_theory "testing";
 
+(*
 val _ = computeLib.set_skip computeLib.the_compset ``COND`` (SOME 1);
-
+*)
+(*
 fun teval n t = 
   let 
     val i = ref n
@@ -17,8 +19,9 @@ fun teval n t =
   in
     with_flag (computeLib.stoppers, SOME stop) (computeLib.WEAK_CBV_CONV computeLib.the_compset) t
   end;
+  *)
 
-(*
+
 
 (* strip_state *)
 Theorem st = EVAL ``strip_state (Inc 5 (SOME 4))``
@@ -124,7 +127,7 @@ Theorem multiplication_lemma = EVAL `` run_machine multiplication (init_machine 
 Theorem multiplication_RUN = EVAL ``RUN multiplication [2; 15]``;
 
 (* Exponential *)
-Theorem exp_t1 = EVAL``RUN exponential [3;3]``
+Theorem exp_t1 = EVAL``RUN exponential [2;3]``
 
 (* Factorial *)
 Theorem fac_t1 = EVAL ``RUN factorial [0]``;
@@ -160,6 +163,7 @@ Theorem pr1 = EVAL ``RUN (Pr (const 1) (multiplication with In:=[3;0;1])) [3;2]`
 Theorem inv0 = EVAL ``RUN invTri  [0]``;
 Theorem inv1 = EVAL ``RUN invTri  [1]``;
 Theorem inv2 = EVAL ``RUN invTri  [2]``;
+(*
 Theorem inv3 = EVAL ``RUN invTri  [3]``;
 Theorem inv4 = EVAL ``RUN invTri  [4]``;
 Theorem inv5 = EVAL ``RUN invTri  [5]``;
@@ -174,39 +178,44 @@ Theorem inv5' = EVAL ``invtri  5``;
 Theorem inv6' = EVAL ``invtri  6``;
 Theorem inv25' = EVAL ``invtri  25``;
 Theorem inv100' = EVAL ``invtri  100``;
+*)
 
 (* FST tests *)
 Theorem FST0 = EVAL``RUN FST [0]``;
 Theorem nfst0 = EVAL``nfst 0``;
 Theorem FST0 = EVAL``RUN FST [1]``;
 Theorem nfst0 = EVAL``nfst 1``;
+(*
 Theorem FST0 = EVAL``RUN FST [10]``;
 Theorem nfst0 = EVAL``nfst 10``;
 Theorem FST0 = EVAL``RUN FST [25]``;
 Theorem nfst0 = EVAL``nfst 25``;
+*)
 
 (* SND tests *)
 Theorem SND0 = EVAL``RUN SND [0]``;
 Theorem nsnd0 = EVAL``nsnd 0``;
 Theorem SND0 = EVAL``RUN SND [1]``;
 Theorem nsnd0 = EVAL``nsnd 1``;
+(*
 Theorem SND0 = EVAL``RUN SND [5]``;
 Theorem nsnd0 = EVAL``nsnd 5``;
 Theorem SND0 = EVAL``RUN SND [18]``;
 Theorem nsnd0 = EVAL``nsnd 18``;
+*)
 
 (* Pair tests *)
 Theorem npair0_0 = EVAL ``npair 0 0``;
 Theorem Pair0_0 = EVAL ``RUN Pair [0;0]``;
 Theorem npair0_1 = EVAL ``npair 0 1``;
 Theorem Pair0_1 = EVAL ``RUN Pair [0;1]``;
+(*
 Theorem npair0_5 = EVAL ``npair 0 5``;
 Theorem Pair0_5 = EVAL ``RUN Pair [0;5]``;
 Theorem npair5_5 = EVAL ``npair 5 5``;
 Theorem Pair5_5 = EVAL ``RUN Pair [5;5]``;
 Theorem npair7_88 = EVAL ``npair 7 88``;
 Theorem Pair7_88 = EVAL ``RUN Pair [7;88]``;
-
 *)
 
 
