@@ -270,13 +270,27 @@ val double_def = Define `
    ----------------------------------
 *)
 
+ (*
+2. correct function in terms of rmcorr
+3. (unary function) correct m1 f /\ correct m2 g ==>  correct (Cn m1 m2) (f o g)
+*)
+
 Definition correct1_def:
   correct1 f m ⇔ ∀a. RUN m [a] = f a 
 End
 
-val correct2_def = Define `
+Definition correct1_rmcorr_def:
+  correct1_rmcorr f M ⇔ ∀inp. rmcorr M M.q0 (λrs. HD M.In = inp) NONE (λrs. M.Out = f inp)
+End 
+
+Definition correct1_rmcorr_V_def:
+  correct1_rmcorr_V f M ⇔  ∃min. M.In = [min] ∧ wfrm M ∧ 
+      ∀inp. rmcorr M M.q0 (λrs. rs min = inp ∧ ∀k. k ≠ min ⇒ rs k = 0) NONE (λrs. M.Out = f inp)
+End 
+
+Definition correct2_def:
   correct2 f m ⇔ ∀a b. RUN m [a;b] = f a b
-`;
+End
 
 val dup0_def = Define `
   dup0 r1 r2 r3= <| 
@@ -1678,6 +1692,44 @@ Proof
   irule rmcorr_stay >> rw[]
 QED
 
+
+
+Theorem dup_correct_V:
+  ∀r1 r2 r3 RS. 
+  RS r3 = 0 ∧ r1 ≠ r2 ∧ r1 ≠ r3 ∧ r2 ≠ r3 ∧
+  P = (λrs. rs = RS) ∧ Q = (λrs. ∀k. k ≠ r2 ⇒ rs k = RS k ∧ rs r2 = RS r1) 
+==>
+  rmcorr (dup r1 r2 r3) 0 P NONE Q
+Proof 
+  rw[] >>
+  irule rmcorr_trans >>
+(* loop1 : clear r2 *)
+  map_every qexists_tac [`λrs. rs r2 = 0 ∧ ∀k. k ≠ r2 ⇒ rs k = RS k`, `1`] >> rw[] 
+  >- (irule loop_correct >> simp[] >> qexists_tac`(λrs. ∀k. k ≠ r2 ⇒ rs k = RS k)` 
+      >> rw[APPLY_UPDATE_THM]
+      >> irule rmcorr_stay >> rw[])
+  >> irule rmcorr_trans >>
+(* loop2: transfer r1 into r2 and r3 *)
+  map_every qexists_tac [`λrs. rs r1 = 0 ∧ rs r2 = RS r1 ∧ rs r3 = RS r1 ∧ ∀k. k ∉ {r1; r2; r3} ⇒ rs k = RS k`, `4`] >> rw[]
+  >- (irule loop_correct >> simp[] 
+      >> qexists_tac`(λrs. rs r1 + rs r2 = RS r1 ∧ rs r2 = rs r3 ∧ ∀k. k ∉ {r1; r2; r3} ⇒ rs k = RS k)` 
+      >> rw[]
+      >> rw[APPLY_UPDATE_THM]
+      >> irule rmcorr_inc >> rw[]
+      >> irule rmcorr_inc >> rw[]
+      >> rw[APPLY_UPDATE_THM]
+      >> irule rmcorr_stay >> rw[])
+(* loop3: transfer r3 back into r1 *)
+  >> irule loop_correct >> simp[] >> 
+  qexists_tac`λrs. rs r1 + rs r3 = RS r1 ∧ rs r2 = RS r1 ∧ ∀k. k ∉ {r1; r2; r3} ⇒ rs k = RS k` >> 
+  rw[APPLY_UPDATE_THM] >> fs[] 
+  >- (Cases_on `k = r1` >> fs[] >> Cases_on `k = r3` >> fs[])
+  >> irule rmcorr_inc >> rw[]
+  >> rw[APPLY_UPDATE_THM] 
+  >> irule rmcorr_stay >> rw[]
+QED
+
+
 Theorem link_Q[simp]:
   (link m1 m2).Q = m1.Q ∪ m2.Q
 Proof 
@@ -1814,8 +1866,6 @@ Proof
 QED 
 
 
-
-
 Theorem link_correct:
   wfrm m1 ∧ wfrm m2 ∧ DISJOINT m1.Q m2.Q ∧ rmcorr m1 m1.q0 P NONE Q ∧ rmcorr m2 m2.q0 Q opt R ∧ q = m1.q0
 ⇒ rmcorr (link m1 m2) q P opt R
@@ -1827,8 +1877,6 @@ Proof
   >- metis_tac[link_m1end, wfrm_def]
   >> metis_tac[link_m2end, wfrm_def]
 QED
-
-
 
 
 Theorem mrInst_prop[simp]:
@@ -2497,7 +2545,8 @@ Proof
 QED 
 
 
-Theorem Cn_correct: 
+Theorem Cn_rmcorr: 
+∀M N Op f g. 
   wfrm g ∧ wfrm f ∧ LENGTH g.In = 1 ∧ LENGTH f.In = 1 
 ∧
   rmcorr g g.q0 (λrs. rs (HD g.In) = M) NONE (λrs. rs g.Out = N)
@@ -2555,16 +2604,182 @@ QED
 
 
 
+Theorem Cn_rmcorr: 
+∀M N Op f g. 
+  wfrm g ∧ wfrm f ∧ g.In = [gin] ∧ f.In = [fin] 
+∧
+  rmcorr g g.q0 (λrs. rs gin = M) NONE (λrs. rs g.Out = N)
+∧ 
+  rmcorr f f.q0 (λrs. rs fin = N) NONE (λrs. rs f.Out = Op)
+
+⇒ rmcorr (Cn f g) (Cn f g).q0 (λrs. rs (HD (Cn f g).In)= M ∧ rs (0 ⊗ 1) = 0) NONE
+         (λrs. rs (Cn f g).Out = Op) 
+Proof 
+  rw[Cn_def, link_all_def] >>
+  irule link_correct >> simp[] >> rw[]
+  >- (rw[DISJOINT_DEF, EXTENSION] >> metis_tac[npair_11, DECIDE``2 ≠ 0``])
+  >- (rw[DISJOINT_DEF, EXTENSION] >> metis_tac[npair_11, DECIDE``2 ≠ 1``])
+  >> qexists_tac `λrs. rs (HD (msInst 2 (mrInst 1 f)).In) = N`
+  >> reverse (rw[])
+  >- (irule msInst_correct_2 >> rw[] >> qexists_tac`NONE` >> rw[]
+      >- rw[npair_opt_def]
+      >- metis_tac[wfrm_def]
+      >> irule mrInst_correct >> rw[] 
+      >- metis_tac[wfrm_def]
+      >> map_every qexists_tac [`(λrs. rs (HD f.In) = N)`,`(λrs. rs f.Out = Op)`]
+      >> rw[liftP_def])
+  >> irule link_correct >> simp[] >> rw[]
+  >- (rw[DISJOINT_DEF, EXTENSION] >> metis_tac[npair_11, DECIDE``1 ≠ 0``])
+  >> qexists_tac `λrs. rs (npair 0 1) = 0 ∧ rs (msInst 0 (mrInst 2 g) with In := MAP (λr. 2 ⊗ r) g.In).Out = N`
+  >> reverse (rw[])
+  >- (irule msInst_correct_2 >> rw[] >> qexists_tac`NONE` >> rw[]
+      >- rw[npair_opt_def]
+      >> irule rmcorr_weakening >> simp[]
+      >> map_every qexists_tac [`(λrs. rs (0 ⊗ 1) = 0 ∧ rs (2 ⊗ g.Out) = N)`,`(λrs.
+                 rs (0 ⊗ 1) = 0 ∧ rs (2 ⊗ g.Out) = N ∧
+                 rs (HD (MAP (λr. 1 ⊗ r) f.In)) = N)`]
+      >> rw[]
+      >> irule dup_correct_2
+      >> rw[]
+      >> qexists_tac`N`
+      >> rw[])
+  >> irule msInst_correct_2 >> rw[]
+  >> qexists_tac `NONE` >> rw[]
+  >- rw[npair_opt_def]
+  >- metis_tac[wfrm_def]
+  >> `(mrInst 2 g).In = [2 ⊗ gin]` by rw[]
+  >> `mrInst 2 g with In := [2 ⊗ gin]= mrInst 2 g with In := (mrInst 2 g).In` 
+        by metis_tac[]
+  >> rw[]
+  >> irule mrInst_correct_kN >> rw[]
+  >- fs[wfrm_def]
+  >> map_every qexists_tac [`0`, `(λrs. rs gin = M)`,`(λrs. rs g.Out = N)`, `0 ⊗ 1`]
+  >> rw[liftP_V_def]
+  >> metis_tac[]
+QED 
+
+
+
+Theorem Cn_rmcorr_V: 
+∀M N Op f g fin gin RS. 
+  wfrm g ∧ wfrm f ∧ g.In = [gin] ∧ f.In = [fin]
+∧
+  rmcorr g g.q0 (λrs. rs gin = M ∧ ∀k. k ≠ gin ⇒ rs k = 0) NONE (λrs. rs g.Out = N ∧ rs = RS ∧ RS g.Out = N)
+∧ 
+  rmcorr f f.q0 (λrs. rs fin = N ∧ ∀k. k ≠ fin ⇒ rs k = 0) NONE (λrs. rs f.Out = Op)
+
+⇒ rmcorr (Cn f g) (Cn f g).q0 (λrs. rs (HD (Cn f g).In)= M ∧ ∀k. k ≠ (HD (Cn f g).In) ⇒ rs k = 0) NONE (λrs. rs (Cn f g).Out = Op) 
+Proof 
+  rw[Cn_def, link_all_def] >>
+  irule link_correct >> simp[] >> rw[]
+  >- (rw[DISJOINT_DEF, EXTENSION] >> metis_tac[npair_11, DECIDE``2 ≠ 0``])
+  >- (rw[DISJOINT_DEF, EXTENSION] >> metis_tac[npair_11, DECIDE``2 ≠ 1``])
+  >> qexists_tac `λrs. rs (HD (msInst 2 (mrInst 1 f)).In) = N ∧ ∀k. k ≠ (HD (msInst 2 (mrInst 1 f)).In) ∧ nfst k = 1 ⇒ rs k = 0`
+  >> reverse (rw[])
+  (* f *)
+  >- (irule msInst_correct_2 >> rw[] >> qexists_tac`NONE` >> rw[]
+      >- rw[npair_opt_def]
+      >- metis_tac[wfrm_def]
+      >> irule mrInst_correct >> rw[] 
+      >- metis_tac[wfrm_def]
+      >> map_every qexists_tac [`(λrs. rs fin = N ∧ ∀k. k ≠ fin ⇒ rs k = 0)`,`(λrs. rs f.Out = Op)`]
+      >> rw[liftP_def]
+      >> rw[FUN_EQ_THM] 
+      >> `(∀k. k ≠ 1 ⊗ fin ∧ nfst k = 1 ⇒ rs k = 0) = (∀k. k ≠ fin ⇒ rs (1 ⊗ k) = 0)` 
+            by (rw[EQ_IMP_THM] >> `∃p q. k = npair p q` by metis_tac[npair_cases] >> fs[])
+      >> rw[])
+  >> irule link_correct >> simp[] >> rw[]
+  >- (rw[DISJOINT_DEF, EXTENSION] >> metis_tac[npair_11, DECIDE``1 ≠ 0``])  
+  >> `(msInst 0 (mrInst 2 g) with In := MAP (λr. 2 ⊗ r) g.In).Out = npair 2 g.Out` by fs[]
+  >> qexists_tac `λrs. ∀k. if k = 2 ⊗ g.Out then rs k = N else if nfst k = 2 then rs k = RS (nsnd k) else rs k = 0`
+  >> reverse (rw[])
+  (* dup *)
+  >- (irule msInst_correct_2 >> rw[] >> qexists_tac`NONE` >> rw[]
+      >- rw[npair_opt_def]
+      >> irule dup_correct_V >> simp[]
+      >> qexists_tac `λr. if r = 2 ⊗ g.Out then N else if nfst r ≠ 2 then 0 else RS (nsnd r)`
+      >> rw[]
+      >- (rw[FUN_EQ_THM, EQ_IMP_THM] 
+          >> Cases_on`r = 2 ⊗ g.Out` >> fs[] 
+          >> metis_tac[])
+      >> rw[FUN_EQ_THM] 
+      >> `(rs (1 ⊗ fin) = N ∧ (∀k. k ≠ 1 ⊗ fin ∧ nfst k = 1 ⇒ rs k = 0)) ==> 
+           (∀k. k ≠ 1 ⊗ fin ⇒ rs k = (if k = 2 ⊗ g.Out then N
+                                      else if nfst k ≠ 2 then 0
+                                      else RS (nsnd k)) ∧ rs (1 ⊗ fin) = N) 
+        ∧
+         ∀k.
+            k ≠ 1 ⊗ fin ⇒
+            rs k =
+            (if k = 2 ⊗ g.Out then N
+             else if nfst k ≠ 2 then 0
+             else RS (nsnd k)) ∧ rs (1 ⊗ fin) = N 
+             ==>  rs (1 ⊗ fin) = N ∧ (∀k. k ≠ 1 ⊗ fin ∧ nfst k = 1 ⇒ rs k = 0) ` suffices_by rw[EQ_IMP_THM]
+      >- ()
+      >-
+      >>
+
+
+      >> metis_tac[]
+      >> rw[FUN_EQ_THM, EQ_IMP_THM] 
+      >- (Cases_on`k = 2 ⊗ g.Out` >> fs[] 
+          >> metis_tac[])
+      >-
+      >>
+
+      >> irule rmcorr_weakening >> simp[]
+      >> map_every qexists_tac [`(λrs. rs (0 ⊗ 1) = 0 ∧ rs (2 ⊗ g.Out) = N)`,`(λrs.
+                 rs (0 ⊗ 1) = 0 ∧ rs (2 ⊗ g.Out) = N ∧
+                 rs (HD (MAP (λr. 1 ⊗ r) f.In)) = N)`]
+      >> rw[]
+
+      >> irule dup_correct_2
+      >> rw[]
+      >> qexists_tac`N`
+      >> rw[])
+  (* g *)
+  >> irule msInst_correct_2 >> rw[]
+  >> qexists_tac `NONE` >> rw[]
+  >- rw[npair_opt_def]
+  >- metis_tac[wfrm_def]
+  >> `(mrInst 2 g).In = MAP (λr. 2 ⊗ r) g.In` by rw[]
+  >> `mrInst 2 g with In := MAP (λr. 2 ⊗ r) g.In = mrInst 2 g with In := (mrInst 2 g).In` 
+        by metis_tac[]
+  >> rw[]
+  >> Cases_on `g.In` >> fs[]
+  >> irule mrInst_correct_kN >> rw[]
+  >- fs[wfrm_def]
+  >> map_every qexists_tac [`0`, `(λrs. rs h = M)`,`(λrs. rs g.Out = N)`, `0 ⊗ 1`]
+  >> rw[liftP_V_def]
+  >> metis_tac[]
+QED 
+
+
+Theorem Cn_IN:
+Proof 
+QED 
+
+Theorem Cn_correct1_V:
+∀M1 M2 f g. correct1_rmcorr_V f M1 ∧ correct1_rmcorr_V g M2 
+⇒ correct1_rmcorr_V (f o g) (Cn M1 M2)
+Proof 
+  rw[correct1_rmcorr_V_def] >> 
+  drule Cn_rmcorr >> rw[]
+
+QED
+
 (* TODO 
 5. prove npair snd fst 
 6. report
 7. Rewrite exp and fac proof etc with the loop theorem 
 
  *)
- (*
 
+ (*
 2. correct function in terms of rmcorr
-3. (unary function) correct m1 f /\ correct m2 g ==>  correct (Cn m1 m2) (f o g)*)
+3. (unary function) correct m1 f /\ correct m2 g ==>  correct (Cn m1 m2) (f o g)
+*)
+
 
 
 
