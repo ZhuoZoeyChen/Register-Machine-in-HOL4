@@ -797,7 +797,7 @@ Proof
   >> fs[]
 QED
 
-(*
+
 Theorem mult_loop1:
   WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) (rs, SOME 2) 
   = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 multiplication) 
@@ -864,7 +864,7 @@ Proof
     >> rw[APPLY_UPDATE_THM] >> `rs0 0 = SUC v` by simp[] >> fs[]
     >> fs[arithmeticTheory.ADD1]
 QED
-*)
+
 
 (* swapping r1 and r2 for multiplication part can make the machine faster *)
 (* r1 ** r0 *)
@@ -988,7 +988,7 @@ Proof
 QED
 
 
-(*
+
 Theorem exp_loop1_1:
   WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) (rs, SOME 4) 
   = WHILE (λ(rs,so). so ≠ NONE) (run_machine_1 exponential) 
@@ -1161,7 +1161,7 @@ Proof
     >> `rs0 0 = SUC v` by simp[] >> fs[]
     >> rw[EXP]
 QED
-*)
+
 
 (* 0: input *)
 Definition factorial_def:
@@ -1952,6 +1952,29 @@ Proof
   >> metis_tac[]
 QED
 
+Theorem mrInst_correct_kN:
+  nfst k ≠ n ∧
+  (wfrm M ∧ q ∈ M.Q ∧ P' = liftP_V n P (λrs. rs k = N) ∧ Q' = liftP_V n Q (λrs. rs k = N))
+  ⇒
+  (rmcorr M q P opt Q ⇒ rmcorr (mrInst n M) q P' opt Q')
+Proof
+  rw[liftP_V_def, rmcorr_def] >>
+  rename [`P (λr. rsm (mnum ⊗ r))`] >>
+  `∃n rs'. run_step M ((λr. rsm (mnum ⊗ r)),SOME q) n = (rs',opt) ∧ Q rs'` by rfs[] >>
+  `rs_mrInst_B4 rsm (λr. rsm (mnum ⊗ r)) mnum` by rw[rs_mrInst_B4_def] >>
+  rename [`run_step M ((λr. rsm (mnum ⊗ r)),SOME q) n = (rs',opt)`] >>
+  qexists_tac `n` >> 
+  drule mrInst_run_step >>
+  rw[] >>
+  qexists_tac `(λr. if nfst r = mnum then rs' (nsnd r) else rsm r)` >>
+  `rs_mrInst_Aft (λr. if nfst r = mnum then rs' (nsnd r) else rsm r) rsm rs' mnum` 
+    by rw[rs_mrInst_Aft_def] >>
+  rw[] 
+  >- metis_tac[]
+  >> `rs' = (λr. rs' r)` by metis_tac[FUN_EQ_THM]
+  >> metis_tac[]
+QED
+
 Definition npair_opt_def:
   npair_opt mnum NONE = NONE ∧
   npair_opt mnum (SOME q) = SOME (npair mnum q)
@@ -2473,7 +2496,7 @@ Proof
  simp[rm_component_equality]
 QED 
 
-(*
+
 Theorem Cn_correct: 
   wfrm g ∧ wfrm f ∧ LENGTH g.In = 1 ∧ LENGTH f.In = 1 
 ∧
@@ -2523,62 +2546,16 @@ Proof
         by metis_tac[]
   >> rw[]
   >> Cases_on `g.In` >> fs[]
-  >> `rmcorr (mrInst 2 g) g.q0 (λrs. rs (2 ⊗ h) = M) NONE (λrs. rs (2 ⊗ g.Out) = N)` 
-          by (irule mrInst_correct >> rw[] 
-              >- fs[wfrm_def]
-              >> map_every qexists_tac [`(λrs. rs h = M)`,`(λrs. rs g.Out = N)`]
-              >> rw[]
-              >> rw[liftP_def]
-              )
-  >> fs[rmcorr_def]
-  >> rw[]
-  >> `rs (2 ⊗ h) = rs (2 ⊗ h) ⇒
-            ∃n rs''.
-                run_step (mrInst 2 g) (rs,SOME g.q0) n = (rs'',NONE) ∧
-                rs'' (2 ⊗ g.Out) = N` by fs[]
-  >> fs[]
-  >> qexists_tac `n`
-  >> qexists_tac `rs''`
-  >> rw[]
-  >> Induct_on `n`
-  >- 
-  >> 
-  >> rw[run_step_def]
-  >> 
-
-
-  >> irule mrInst_correct_V >> rw[]
+  >> irule mrInst_correct_kN >> rw[]
   >- fs[wfrm_def]
-  >> map_every qexists_tac [`(λrs. rs h = M)`,`(λrs. rs g.Out = N)`]
-  >> rw[]
-  >> qexists_tac `λr. if (r = 0 ⊗ 1) then 0`
-  >> irule rmcorr_weakening >> simp[]
-  >> map_every qexists_tac [`(λrs. rs (2 ⊗ h) = M)`,`(λrs. rs g.Out = N ∧ )`]
-  >> map_every qexists_tac [`(λrs. rs h = M)`,`(λrs. rs g.Out = N)`]>> rw[]
-
-
+  >> map_every qexists_tac [`0`, `(λrs. rs h = M)`,`(λrs. rs g.Out = N)`, `0 ⊗ 1`]
+  >> rw[liftP_V_def]
+  >> metis_tac[]
 QED 
-*)
-(*
-  `rmcorr (mrInst 1 f) f.q0 (liftP 1 (λrs. rs (HD f.In) = N)) NONE (liftP 1 (λrs. rs f.Out = Op))` 
-         by fs[npair_opt_def, liftP_def, mrInst_correct, wfrm_def] >>
-  `rmcorr (mrInst 2 g) g.q0 (liftP 2 (λrs. rs (HD g.In) = M)) NONE (liftP 2 (λrs. rs g.Out = N))` 
-         by fs[npair_opt_def, liftP_def, mrInst_correct, wfrm_def] >> 
-  `rmcorr (msInst 1 (mrInst 1 f)) (1 ⊗ (mrInst 1 f).q0) 
-        (liftP 1 (λrs. rs (HD f.In) = N)) (npair_opt 1 NONE) (liftP 1 (λrs. rs f.Out = Op))` 
-         by (irule msInst_correct >> rw[] >> fs[])
-         fs[npair_opt_def, msInst_correct, liftP_def, mrInst_correct, wfrm_def, mrInst_wfrm] >>
-  `rmcorr (msInst 2 (mrInst 2 g)) (2 ⊗ (mrInst 2 g).q0) (liftP 2 (λrs. HD (mrInst 2 g).In = M)) (npair_opt 2 NONE) (liftP (λrs. (mrInst 2 g).Out = N))` 
-         by fs[npair_opt_def, msInst_correct] >> 
 
-  `rmcorr (msInst 1 f) (npair 1 f.q0) (λrs. HD f.In = N) NONE (λrs. f.Out = Op)` 
-      by metis_tac[]
-  irule rmcorr_trans >> 
-  map_every qexists_tac [`(λrs. HD g.In = M)`, ``]
-  *)
+
 
 (* TODO 
-2. prove composition
 5. prove npair snd fst 
 6. report
 7. Rewrite exp and fac proof etc with the loop theorem 
