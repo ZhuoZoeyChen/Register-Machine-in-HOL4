@@ -895,10 +895,11 @@ End
 
 Theorem exp_facts[simp] = generate_machine_rwts exponential_def
 
-(*
+
 Theorem exponential_correct_rmcorr:
 ∀RS. (RS 2 = 0 ∧ RS 3 = 0 ∧ RS 4 = 0 ∧ RS 5 = 0) ⇒ 
-  rmcorr exponential 14 (λrs. rs = RS) NONE (λrs. rs 2 = RS 1 ** RS 0 ∧ rs 0 = 0 ∧ ∀k. k ∉ {0;2} ⇒ rs k = RS k)
+  rmcorr exponential 14 (λrs. rs = RS) NONE 
+      (λrs. rs 2 = RS 1 ** RS 0 ∧ rs 0 = 0 ∧ ∀k. k ∉ {0;2} ⇒ rs k = RS k)
 Proof 
   rw[] >>
   irule rmcorr_inc >> simp[] >>
@@ -909,14 +910,83 @@ Proof
   >- rw[APPLY_UPDATE_THM]
   >- fs[]
   >> irule rmcorr_trans >> simp[]
-  >> map_every qexists_tac [`λrs. rs 1 = 0 ∧ rs 2 * (rs 5 ** rs 0) = RS 1 ** RS 0 ∧ rs 3 = rs 2 * rs 1 ∧ ∀k. k ∉ {0;1;2;3;5} ⇒ rs k = RS k`,`9`]
+  >> map_every qexists_tac
+   [`λrs. rs 0 = N ∧ rs 1 = 0 ∧ rs 5 = RS 1 ∧ rs 2 * (rs 5 ** (rs 0 + 1)) = RS 1 ** RS 0 ∧ 
+        rs 3 = rs 2 * rs 5 ∧ ∀k. k ∉ {0;1;2;3;5} ⇒ rs k = RS k`,`9`]
   >> rw[]
-  >- (irule loop_correct >> simp[] >>
-      qexists_tac `λrs. `)
-  >> 
-
+  >- (irule loop_correct >> simp[] 
+      >> qexists_tac `λrs. rs 1 + rs 5 = RS 1 ∧ rs 0 = N ∧ rs 2 * (RS 1 ** (rs 0 + 1)) = RS 1 ** RS 0 
+         ∧ rs 4 = 0 ∧ rs 3 + rs 1 * rs 2 = RS 1 * rs 2 ∧ ∀k. k ∉ {0;1;2;3;5} ⇒ rs k = RS k` 
+      >> rw[APPLY_UPDATE_THM] >> fs[]
+      >> irule rmcorr_inc >> simp[]
+      >> rw[APPLY_UPDATE_THM]
+      >> irule rmcorr_trans >> simp[]
+      >> map_every qexists_tac [`λrs. rs 1 = N' ∧ rs 0 = N ∧ 
+         rs 1 + rs 5 = RS 1 ∧ rs 4 * (RS 1 ** (rs 0 + 1)) = RS 1 ** RS 0 
+         ∧ rs 2 = 0 ∧ rs 3 + rs 1 * rs 4 = RS 1 * rs 4 ∧ ∀k. k ∉ {0;1;2;3;4;5} ⇒ rs k = RS k`,`7`]
+      >> rw[APPLY_UPDATE_THM] >> fs[]
+      >- (irule loop_correct >> simp[]
+          >> qexists_tac `λrs. rs 1 = N' ∧ rs 0 = N ∧ 
+         rs 1 + rs 5 = RS 1 ∧ (rs 2 + rs 4) * (RS 1 ** (rs 0 + 1)) = RS 1 ** RS 0 
+         ∧ (rs 2 + rs 3) + rs 1 * (rs 2 + rs 4) = RS 1 * (rs 2 + rs 4) ∧ ∀k. k ∉ {0;1;2;3;4;5} ⇒ rs k = RS k`
+          >> rw[APPLY_UPDATE_THM] >> fs[]
+          >> irule rmcorr_inc >> simp[]
+          >> irule rmcorr_inc >> simp[]
+          >> rw[APPLY_UPDATE_THM]
+          >> irule rmcorr_stay >> simp[]
+          >> rw[APPLY_UPDATE_THM] >> fs[])
+      >> irule loop_correct >> simp[]
+      >> qexists_tac `λrs. rs 1 = N' ∧ rs 0 = N ∧ 
+         rs 1 + rs 5 = RS 1 ∧ (rs 2 + rs 4) * (RS 1 ** (rs 0 + 1)) = RS 1 ** RS 0 
+         ∧ rs 3 + rs 1 * (rs 2 + rs 4) = RS 1 * (rs 2 + rs 4) ∧ ∀k. k ∉ {0;1;2;3;4;5} ⇒ rs k = RS k`
+      >> rw[APPLY_UPDATE_THM] >> fs[]
+      >- (Cases_on `k=4` >> fs[])
+      >> irule rmcorr_inc >> simp[]
+      >> irule rmcorr_stay >> simp[]
+      >> rw[APPLY_UPDATE_THM] >> fs[]
+      )
+  >> irule rmcorr_trans >> simp[]
+  >> map_every qexists_tac [`λrs. rs 0 = N ∧ rs 2 * (RS 1 ** (rs 0 + 1)) = RS 1 ** RS 0 ∧ 
+        rs 3 = rs 2 * RS 1 ∧ ∀k. k ∉ {0;2;3} ⇒ rs k = RS k`,`11`]
+  >> rw[]
+  >- (irule loop_correct >> simp[]
+      >> qexists_tac `λrs. rs 0 = N ∧ (rs 5 + rs 1) = RS 1 ∧ rs 2 * ((rs 5 + rs 1) ** (rs 0 + 1)) = RS 1 ** RS 0 ∧ 
+        rs 3 = rs 2 * (rs 5 + rs 1) ∧ ∀k. k ∉ {0;1;2;3;5} ⇒ rs k = RS k`
+      >> rw[APPLY_UPDATE_THM] >> fs[]
+      >- metis_tac[]
+      >- metis_tac[] 
+      >- (Cases_on `k=1` >> fs[] >> Cases_on `k=5` >> fs[])
+      >> irule rmcorr_inc >> simp[]
+      >> irule rmcorr_stay >> simp[]
+      >> rw[APPLY_UPDATE_THM] >> fs[]
+      >> metis_tac[])
+  >> irule rmcorr_trans >> simp[]
+  >> map_every qexists_tac [`λrs. rs 0 = N ∧ rs 3 * (RS 1 ** rs 0) = RS 1 ** RS 0 ∧ 
+        ∀k. k ∉ {0;3} ⇒ rs k = RS k`,`12`]
+  >> rw[]
+  >- (irule loop_correct >> simp[] 
+      >> qexists_tac `λrs. rs 0 = N ∧ rs 3 * (RS 1 ** rs 0) = RS 1 ** RS 0 ∧ 
+        ∀k. k ∉ {0;2;3} ⇒ rs k = RS k`
+      >> rw[APPLY_UPDATE_THM] >> fs[]
+      >- (`rs 0 + 1 = SUC (rs 0)` by fs[] 
+          >> `rs 2 * (RS 1 ** (rs 0 + 1) )= rs 2 * (RS 1 ** (SUC (rs 0)))` by metis_tac[] 
+          >> `rs 2 * RS 1 ** SUC (rs 0) = rs 2 * RS 1 * RS 1 ** rs 0` by fs[EXP] 
+          >> `RS 1 * rs 2 * RS 1 ** rs 0 = rs 2 * RS 1 * RS 1 ** rs 0` by rw[MULT_COMM] 
+          >> metis_tac[])
+      >- (Cases_on `k=2` >> fs[])
+      >> irule rmcorr_stay >> simp[]
+      )
+  >> irule loop_correct >> simp[]
+  >> qexists_tac `λrs. rs 0 = N ∧ (rs 3 + rs 2) * (RS 1 ** rs 0) = RS 1 ** RS 0 ∧ 
+        ∀k. k ∉ {0;2;3} ⇒ rs k = RS k`
+  >> rw[APPLY_UPDATE_THM] >> fs[]
+  >- (Cases_on`k = 3` >> fs[])
+  >> irule rmcorr_inc >> simp[]
+  >> irule rmcorr_stay >> simp[]
+  >> rw[APPLY_UPDATE_THM]
+  >> fs[]
 QED
-*)
+
 
 (*
 Theorem exp_loop1_1:
@@ -2396,8 +2466,6 @@ Theorem wfrm_In[simp]:
 Proof 
   rw[wfrm_def]
 QED 
-
-
 
 Theorem with_In[simp]:
 ∀m.  (m with In := m.In) = m 
