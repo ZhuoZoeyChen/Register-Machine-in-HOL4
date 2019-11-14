@@ -484,6 +484,17 @@ Proof
 QED
 
 
+Theorem rmcorr_trans_V:
+  (∀rs. Q rs ⇒ Q' rs) ∧ rmcorr m q1 P (SOME q2) Q ∧ rmcorr m q2 Q' q3 R ⇒ rmcorr m q1 P q3 R
+Proof 
+  rw[rmcorr_def] >> 
+  first_x_assum drule >> rw[] >>
+  first_x_assum drule >> rw[] >>
+  first_x_assum drule >> rw[] >>
+  map_every qexists_tac [`n+n'`,`rs''`] >>
+  `run_step m (rs,SOME q1) (n + n') =  run_step m (run_step m (rs,SOME q1) n) n' ` 
+    by simp[combo_steps] >> rw[]
+QED
 
 Theorem rmcorr_inc:
   m.tf q0 = Inc r (SOME d)
@@ -1878,6 +1889,18 @@ Proof
   >> metis_tac[link_m2end, wfrm_def]
 QED
 
+Theorem link_correct_V:
+  wfrm m1 ∧ wfrm m2 ∧ DISJOINT m1.Q m2.Q ∧ q = m1.q0 ∧
+  rmcorr m1 m1.q0 P NONE Q ∧ rmcorr m2 m2.q0 Q' opt R ∧ (∀rs. Q rs ⇒ Q' rs)
+⇒ rmcorr (link m1 m2) q P opt R
+Proof
+  rw[] >>
+  irule rmcorr_trans_V >>
+  map_every qexists_tac [`Q`,`Q'`, `m2.q0`] >>
+  rw[] 
+  >- metis_tac[link_m1end, wfrm_def]
+  >> metis_tac[link_m2end, wfrm_def]
+QED
 
 Theorem mrInst_prop[simp]:
  (s ∈ M.Q ⇒ (mrInst n M).tf s = (rInst n (M.tf s))) ∧
@@ -1975,6 +1998,26 @@ QED
 Definition liftP_V_def:
   liftP_V n P X = (λrs. P (λr. rs (n ⊗ r)) ∧ X rs)
 End
+
+
+Theorem mrInst_correct_kV:
+ ∀RS. (wfrm M ∧ q ∈ M.Q ∧ P' = liftP_V mnum P (λrs. ∀k. nfst k ≠ mnum ⇒ rs k = RS k) 
+       ∧ Q' = liftP_V mnum Q (λrs. ∀k. nfst k ≠ mnum ⇒ rs k = RS k))
+  ⇒
+  (rmcorr M q P opt Q ⇒ rmcorr (mrInst mnum M) q P' opt Q')
+Proof
+  rw[liftP_V_def, rmcorr_def] >>
+  first_x_assum drule >> rw[] >>
+  map_every qexists_tac[`n`,`λr. if nfst r = mnum then rs' (nsnd r) else RS r`] >>
+  rw[]
+  >- (drule mrInst_run_step >> rw[]
+      >> first_x_assum irule >> rw[]
+      >> qexists_tac `λr. rs (mnum ⊗ r)`
+      >> qexists_tac `rs'` >> rw[]
+      >- rw[rs_mrInst_B4_def]
+      >> rw[rs_mrInst_Aft_def])
+  >> metis_tac[]
+QED
 
 (* rmcorr M q P opt Q ==> rmcorr (mrInst n M) q (λrs. (P (λr. rs (nsnd r))) ∧ (λr. nfst r = mnum)) opt (λrs. Q (λr. rs (nsnd r)))*)
 Theorem mrInst_correct_V:
@@ -2659,21 +2702,28 @@ Proof
 QED 
 
 
+(* 
+  g := mrInst 2 g
+  f := mrInst 1 f 
+  *)
 
 Theorem Cn_rmcorr_V: 
 ∀M N Op f g fin gin RS. 
   wfrm g ∧ wfrm f ∧ g.In = [gin] ∧ f.In = [fin]
 ∧
-  rmcorr g g.q0 (λrs. rs gin = M ∧ ∀k. k ≠ gin ⇒ rs k = 0) NONE (λrs. rs g.Out = N ∧ rs = RS ∧ RS g.Out = N)
+  rmcorr g g.q0 (λrs. rs gin = M ∧ ∀k. k ≠ gin ⇒ rs k = 0) NONE (λrs. rs g.Out = N ∧ rs = RSg)
 ∧ 
-  rmcorr f f.q0 (λrs. rs fin = N ∧ ∀k. k ≠ fin ⇒ rs k = 0) NONE (λrs. rs f.Out = Op)
+  rmcorr f f.q0 (λrs. rs fin = N ∧ ∀k. k ≠ fin ⇒ rs k = 0) NONE (λrs. rs f.Out = Op ∧ rs = RSf)
 
-⇒ rmcorr (Cn f g) (Cn f g).q0 (λrs. rs (HD (Cn f g).In)= M ∧ ∀k. k ≠ (HD (Cn f g).In) ⇒ rs k = 0) NONE (λrs. rs (Cn f g).Out = Op) 
+⇒ rmcorr (Cn f g) (Cn f g).q0 (λrs. rs (HD (Cn f g).In)= M ∧ ∀k. k ≠ (HD (Cn f g).In) ⇒ rs k = 0) 
+    NONE (λrs. rs (Cn f g).Out = Op ∧ ∀p. rs (npair 2 p) = RSg ) 
 Proof 
   rw[Cn_def, link_all_def] >>
-  irule link_correct >> simp[] >> rw[]
+  irule link_correct_V >> simp[] >> rw[]
   >- (rw[DISJOINT_DEF, EXTENSION] >> metis_tac[npair_11, DECIDE``2 ≠ 0``])
   >- (rw[DISJOINT_DEF, EXTENSION] >> metis_tac[npair_11, DECIDE``2 ≠ 1``])
+  >> qexists_tac `λrs. rs (HD (msInst 2 (mrInst 1 f)).In) = N ∧ ∀k. k ≠ (HD (msInst 2 (mrInst 1 f)).In) ∧ nfst k = 1 ⇒ rs k = 0
+                    ∧ ∀k. nfst k ≠ 1 ⇒ rs k = 0`
   >> qexists_tac `λrs. rs (HD (msInst 2 (mrInst 1 f)).In) = N ∧ ∀k. k ≠ (HD (msInst 2 (mrInst 1 f)).In) ∧ nfst k = 1 ⇒ rs k = 0`
   >> reverse (rw[])
   (* f *)
@@ -2703,6 +2753,12 @@ Proof
           >> Cases_on`r = 2 ⊗ g.Out` >> fs[] 
           >> metis_tac[])
       >> rw[FUN_EQ_THM] 
+      >> rw[EQ_IMP_THM]
+      >- 
+      >>
+
+
+
       >> `(rs (1 ⊗ fin) = N ∧ (∀k. k ≠ 1 ⊗ fin ∧ nfst k = 1 ⇒ rs k = 0)) ==> 
            (∀k. k ≠ 1 ⊗ fin ⇒ rs k = (if k = 2 ⊗ g.Out then N
                                       else if nfst k ≠ 2 then 0
@@ -2764,7 +2820,7 @@ Theorem Cn_correct1_V:
 ⇒ correct1_rmcorr_V (f o g) (Cn M1 M2)
 Proof 
   rw[correct1_rmcorr_V_def] >> 
-  drule Cn_rmcorr >> rw[]
+  drule Cn_rmcorr >> rw[] 
 
 QED
 
