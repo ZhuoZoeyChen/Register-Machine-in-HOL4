@@ -149,9 +149,11 @@ Theorem lpg = EVAL``loopguard (npair 0 2) ``;
 
 
 (*Pr tests*)
-Theorem add1' = EVAL``RUN (add1 with In:=[3;0;1]) [1;100;5]``;
+(*
+Theorem add1' = EVAL``RUN (add1 with In:=[3;0;1]) [1;2;5]``;
 Theorem machine =EVAL ``Pr identity (add1 with In:=[3;0;1])``;
-Theorem machine =EVAL ``RUN ((Pr identity (add1 with In:=[3;0;1])) with In:=[10000000;5;9]) [1;2;3]``;
+Theorem machine =EVAL ``RUN ((Pr identity (add1 with In:=[3;0;1])) with In:=[10;5;9]) [1;2;3]``;
+*)
 (*Theorem cnm = EVAL ``RUN (Cn (Pr identity (add1 with In:=[3;0;1])) [Pi 1 3; Pi 2 3]) [1;2;3]``;*)
 (*Theorem pr_add1_E = EVAL``RUN (Pr () (Pr identity add1)) [10;3]``;
 Theorem pr_mult = EVAL ``RUN (Pr (const 0) (Pr identity add1))``;
