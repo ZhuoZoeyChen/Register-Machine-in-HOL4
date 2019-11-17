@@ -404,7 +404,6 @@ Definition correct_def:
   correct m f a ⇔ ∀l. LENGTH l = a ⇒ RUN m l = f l
 End
 
-
 Definition run_step_def:
   run_step m rsq 0 = rsq ∧
   run_step m rsq (SUC n) = run_step m (run_machine_1 m rsq) n 
@@ -444,7 +443,6 @@ Definition rm_ends_V_def:
   rm_ends_V M 
 End
 *) 
-
 
 Definition correct1_def:
   correct1 f m ⇔ ∀a. RUN m [a] = f a 
@@ -1759,7 +1757,7 @@ QED
 
 
 
-Theorem dup_correct_INV_V:
+Theorem dup_correct_INV:
   ∀r1 r2 r3 INV. 
     r1 ≠ r2 ∧ r1 ≠ r3 ∧ r2 ≠ r3 ∧
     P = (λrs. rs r3 = 0 ∧ rs r1 = N ∧ 
@@ -2249,6 +2247,7 @@ Proof
 QED
 
 
+(* tri 0 = 0 ∧ ∀n. tri (SUC n) = SUC n + tri n *)
 Definition Tri_def:
   Tri = <|
           Q :={1;2;3;4;5;6;7};
@@ -2305,8 +2304,7 @@ Proof
   >> fs[]
 QED 
 
-
-
+(*  ∀n. tri⁻¹ n = SND (invtri0 n 0) *)
 Definition invTri_def:
   invTri = <|
       Q := {1;2;3;4;5;6;7;8};
@@ -2396,48 +2394,32 @@ npair 0 2 = 5 (input register)
 npair 0 1 = 2 (scratch register) 
 *)
 Definition Pair_def:
-  Pair = 
-        let 
-            add1 = mrInst 1 simp_add;
-            tri' = mrInst 2 Tri;
-            add2 = mrInst 3 simp_add;
-
-            dup00_1 = dup 0 (HD add1.In) 2;
-            dup01_1 = dup 5 (EL 1 add1.In) 2;
-            dup01_3 = dup 5 (HD add2.In) 2;
-            
-            dup1_2 = dup add1.Out (HD tri'.In) 2;
-            
-            dup2_3 = dup tri'.Out (EL 1 add2.In) 2;
-
-            mix = [dup00_1; dup01_1; dup01_3; add1; dup1_2; tri'; dup2_3; add2];
-            mix' = MAPi msInst mix;
-        in 
-          link_all mix' with In := [0;5]
-End
-
-(*
-Definition Pair_def:
   Pair f g = 
         let 
             add1 = mrInst 1 simp_add;
             tri' = mrInst 2 Tri;
             add2 = mrInst 3 simp_add;
+            f' = mrInst 4 f;
+            g' = mrInst 5 g;
 
-            dup00_1 = dup 0 (HD add1.In) 2;
-            dup01_1 = dup 5 (EL 1 add1.In) 2;
-            dup01_3 = dup 5 (HD add2.In) 2;
+            dupn_f = dup 0 (HD f'.In) 2; 
+            dupn_g = dup 0 (HD g'.In) 2;
+
+            dup00_1 = dup f'.Out (HD add1.In) 2;
+            dup01_1 = dup g'.Out (EL 1 add1.In) 2;
+            dup01_3 = dup g'.Out (HD add2.In) 2;
             
             dup1_2 = dup add1.Out (HD tri'.In) 2;
             
             dup2_3 = dup tri'.Out (EL 1 add2.In) 2;
 
-            mix = [dup00_1; dup01_1; dup01_3; add1; dup1_2; tri'; dup2_3; add2];
+            mix = [dupn_f; dupn_g; f'; g'; dup00_1; dup01_1; dup01_3; add1; dup1_2; tri'; dup2_3; add2];
             mix' = MAPi msInst mix;
         in 
-          link_all mix' with In := [0;5]
+          link_all mix' with In := [0]
 End
-*)
+
+
 
 (* FST n = nfst n 
     FST.In = 0; 
@@ -2560,7 +2542,6 @@ Proof
   rw[]
 QED
 
-
 Theorem msInst_Out[simp]:
   (msInst mnum f).Out = f.Out
 Proof 
@@ -2635,6 +2616,7 @@ Theorem with_In[simp]:
 Proof 
  simp[rm_component_equality]
 QED 
+
 (* 
   g := mrInst 2 g
   f := mrInst 1 f 
@@ -2687,7 +2669,7 @@ Proof
   (* dup *)
   >- (irule msInst_correct_2 >> rw[] >> qexists_tac`NONE` >> rw[]
       >- rw[npair_opt_def]
-      >> irule dup_correct_INV_V >> simp[]
+      >> irule dup_correct_INV >> simp[]
       >> qexists_tac `λrs. ∀k. nfst k ≠ 2 ∧ k ≠ (HD (msInst 2 (mrInst 1 f)).In) ⇒ rs k = 0`
       >> qexists_tac `N` >> rw[]
       >> rw[FUN_EQ_THM, EQ_IMP_THM]
