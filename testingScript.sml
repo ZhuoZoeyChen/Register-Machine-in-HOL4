@@ -210,17 +210,11 @@ Theorem nsnd0 = EVAL``nsnd 18``;
 
 (* Pair tests *)
 Theorem npair0_0 = EVAL ``npair 0 0``;
-Theorem Pair0_0 = EVAL ``RUN Pair [0;0]``;
+Theorem Pair0_0 = EVAL ``RUN (Pair identity identity) [0]``;
 Theorem npair0_1 = EVAL ``npair 0 1``;
-Theorem Pair0_1 = EVAL ``RUN Pair [0;1]``;
-(*
-Theorem npair0_5 = EVAL ``npair 0 5``;
-Theorem Pair0_5 = EVAL ``RUN Pair [0;5]``;
-Theorem npair5_5 = EVAL ``npair 5 5``;
-Theorem Pair5_5 = EVAL ``RUN Pair [5;5]``;
-Theorem npair7_88 = EVAL ``npair 7 88``;
-Theorem Pair7_88 = EVAL ``RUN Pair [7;88]``;
-*)
+Theorem Pair0_1 = EVAL ``RUN (Pair identity add1) [0]``;
+Theorem npair0_5 = EVAL ``npair 0 2``;
+Theorem Pair0_5 = EVAL ``RUN (Pair identity (link (msInst 0 add1) (msInst 1 add1))) [0]``;
 
 
 val _ = export_theory()
