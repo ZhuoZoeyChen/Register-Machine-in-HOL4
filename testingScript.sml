@@ -4,16 +4,22 @@ open combinTheory;
 open whileTheory;
 open indexedListsTheory;
 open numeralTheory;
-open registerMachineTheory;
+open rmModelTheory;
+open rmToPairTheory;
+open rmRecursiveFuncsTheory;
+open rmToolsTheory;
+open rmSampleMachinesTheory;
 
 val _ = new_theory "testing";
+
+
 
 (*
 val _ = computeLib.set_skip computeLib.the_compset ``COND`` (SOME 1);
 *)
 (*
-fun teval n t = 
-  let 
+fun teval n t =
+  let
     val i = ref n
     fun stop t = if !i <= 0 then true else (i := !i - 1; false)
   in
@@ -65,7 +71,7 @@ Theorem test_mrInst_add = EVAL``RUN (mrInst 3 addition) [15; 26]``;
 
 Theorem test_mrInst_constr = EVAL ``mrInst 3 addition``;
 
-Theorem test_mrInst_add2 = EVAL 
+Theorem test_mrInst_add2 = EVAL
   ``run_machine (mrInst 3 addition) (init_machine (mrInst 3 addition) [15; 26])``;
 *)
 
@@ -95,22 +101,22 @@ Theorem test_link_run = EVAL ``
     let ma = (let m = MAPi (λi m. (mrInst (i+1) m)) [double;double];
                                  dup = dup0 (HD m).Out (HD (LAST m).In) 0;
                                  mix = MAPi msInst [HD m ; dup ; LAST m]
-               in 
+               in
                  link_all mix)
-    in 
+    in
       run_machine ma (init_machine ma [2])
 ``;
 
 Theorem test_link_RUN = EVAL ``RUN (let m = MAPi (λi m. (mrInst (i+1) m)) [double;double];
                                  dup = dup0 (HD m).Out (HD (LAST m).In) 0;
                                  mix = MAPi msInst [HD m ; dup ; LAST m]
-               in 
+               in
                  link_all mix) [5]``;
 
 Theorem test_1 = computeLib.RESTR_EVAL_CONV [``$o``] `` let m = MAPi (λi m. (mrInst (i+1) m)) [double;double];
                                  dup = dup0 (HD m).Out (HD (LAST m).In) 0;
                                  mix = MAPi msInst [HD m ; dup ; LAST m]
-               in 
+               in
                  link_all mix``;
 *)
 
@@ -215,6 +221,5 @@ Theorem npair0_1 = EVAL ``npair 0 1``;
 Theorem Pair0_1 = EVAL ``RUN (Pair identity add1) [0]``;
 Theorem npair0_5 = EVAL ``npair 0 2``;
 Theorem Pair0_5 = EVAL ``RUN (Pair identity (link (msInst 0 add1) (msInst 1 add1))) [0]``;
-
 
 val _ = export_theory()

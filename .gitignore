@@ -1,6 +1,5 @@
 .HOLMK/
 .hollogs/
-primRecRMScript.sml
 .DS_Store
 *Theory.dat
 *Theory.sig
